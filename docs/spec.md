@@ -306,11 +306,16 @@ structured access to a Parallax database. Designed 2026-08-22; lives on the
   (root/namespace/database/anonymous), `SURREAL_USER`, `SURREAL_PASS`.
   Recommended registration: a dedicated **EDITOR-role database user**, capping
   blast radius independent of tool design.
-- **Structured tools (v1 write scope: objects + notes CRUD):**
-  `list_classes`, `get_class`; `list_objects`, `get_object`, `create_object`,
-  `update_object`, `delete_object`; `list_notes`, `create_note`,
-  `update_note`, `delete_note`. Schema mutation via MCP is deliberately
-  excluded from v1 — schema stays human-owned in the app UI.
+- **Structured tools:** `list_classes`, `get_class`, **`create_class`**;
+  `list_objects`, `get_object`, `create_object`, `update_object`,
+  `delete_object`; `list_notes`, `create_note`, `update_note`,
+  `delete_note`. Agents may create classes, but only **explicitly** via
+  `create_class` (naming validated, SCHEMAFULL + meta registration — the
+  same path as the UI). Structured writes to unregistered classes are
+  **rejected** with guidance, closing off SurrealDB's implicit SCHEMALESS
+  table creation. (Supersedes the same-day "schema mutation excluded from
+  v1" scope; committed raw queries retain full power including DDL, by
+  decision — the DB user's role is the backstop.)
 - **Raw SurrealQL: a two-mode `query` tool, dry-run by default.** Full
   SurrealQL is accepted; read-only statements execute directly and return
   real data; write statements are wrapped in `BEGIN … CANCEL TRANSACTION`

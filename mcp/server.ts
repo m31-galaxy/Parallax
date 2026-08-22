@@ -20,7 +20,17 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { DateTime, RecordId, Surreal } from 'surrealdb';
 import { z } from 'zod';
 import { AUTH_LEVELS, systemAuth, type AuthLevel } from '../src/lib/db/auth';
-import { getClass, listClasses, type ClassView } from '../src/lib/db/classes';
+import {
+    classExists,
+    createClass,
+    FIELD_TYPES,
+    getClass,
+    isValidClassName,
+    isValidFieldName,
+    listClasses,
+    type ClassView,
+    type NewField
+} from '../src/lib/db/classes';
 import {
     createNote,
     deleteNote,
@@ -137,6 +147,21 @@ function coerceData(cls: ClassView, data: Record<string, unknown>): Record<strin
 
 const server = new McpServer({ name: 'parallax', version: '0.1.0' });
 
+/**
+ * SurrealDB implicitly creates SCHEMALESS tables on first write; only
+ * registered classes may be written through the structured tools, so class
+ * creation stays explicit (create_class).
+ */
+async function requireClass(className: string): Promise<ClassView> {
+    if (!(await classExists(db, className))) {
+        throw new Error(
+            `No class named "${className}" is registered in this database. ` +
+                'Use list_classes to see the available classes, or create_class to define a new one.'
+        );
+    }
+    return await getClass(db, className);
+}
+
 server.registerTool(
     'list_classes',
     {
@@ -153,7 +178,53 @@ server.registerTool(
             'Get a class definition: its plural name and its fields with types (text, long_text, number, boolean, datetime) and required flags.',
         inputSchema: { class: z.string().describe('Class name, PascalCase (e.g. "Person")') }
     },
-    async ({ class: className }) => run(() => getClass(db, className))
+    async ({ class: className }) => run(() => requireClass(className))
+);
+
+server.registerTool(
+    'create_class',
+    {
+        description:
+            'Explicitly create a new class (SCHEMAFULL table + registration). Class names are ' +
+            'PascalCase; field names are snake_case; field types: text, long_text, number, ' +
+            'boolean, datetime. This is the only way to create classes — writing objects of an ' +
+            'unregistered class is rejected.',
+        inputSchema: {
+            name: z.string().describe('Singular class name, PascalCase (e.g. "Person")'),
+            plural: z.string().describe('Plural display name (e.g. "People")'),
+            fields: z.array(
+                z.object({
+                    name: z.string(),
+                    type: z.enum(FIELD_TYPES),
+                    required: z.boolean().optional()
+                })
+            )
+        }
+    },
+    async ({ name, plural, fields }) =>
+        run(async () => {
+            if (!isValidClassName(name))
+                throw new Error(`Class name must be PascalCase (e.g. "Person"), got "${name}"`);
+            if (plural.trim() === '') throw new Error('Plural name must not be empty');
+            const seen = new Set<string>();
+            for (const field of fields) {
+                if (!isValidFieldName(field.name))
+                    throw new Error(
+                        `Field name must be snake_case and not "id", got "${field.name}"`
+                    );
+                if (seen.has(field.name)) throw new Error(`Duplicate field name "${field.name}"`);
+                seen.add(field.name);
+            }
+            if (await classExists(db, name))
+                throw new Error(`A class named "${name}" already exists`);
+            const newFields: NewField[] = fields.map((f) => ({
+                name: f.name,
+                type: f.type,
+                required: f.required ?? false
+            }));
+            await createClass(db, name, plural.trim(), newFields);
+            return await getClass(db, name);
+        })
 );
 
 server.registerTool(
@@ -188,7 +259,7 @@ server.registerTool(
     },
     async ({ class: className, data }) =>
         run(async () => {
-            const cls = await getClass(db, className);
+            const cls = await requireClass(className);
             return await createObject(db, className, coerceData(cls, data));
         })
 );
@@ -202,7 +273,7 @@ server.registerTool(
     },
     async ({ class: className, id, data }) =>
         run(async () => {
-            const cls = await getClass(db, className);
+            const cls = await requireClass(className);
             await updateObject(db, className, id, coerceData(cls, data));
             return `Updated ${className}:${id}`;
         })
@@ -336,7 +407,28 @@ server.registerTool(
 
 // --- Start -------------------------------------------------------------------
 
-await connect();
+// Fail fast with a readable message: a hung or failed database connection
+// must not leave the MCP handshake dangling (clients time out at 60s).
+const CONNECT_TIMEOUT_MS = 10_000;
+try {
+    await Promise.race([
+        connect(),
+        new Promise((_resolve, reject) =>
+            setTimeout(
+                () => reject(new Error(`no response from ${url} within ${CONNECT_TIMEOUT_MS}ms`)),
+                CONNECT_TIMEOUT_MS
+            )
+        )
+    ]);
+} catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+        `Parallax MCP: could not connect to SurrealDB at ${url} ` +
+            `(namespace "${namespace}", database "${database}", auth level "${level}"): ${message}`
+    );
+    process.exit(1);
+}
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
 console.error(`Parallax MCP server connected to ${namespace}/${database} at ${url}`);

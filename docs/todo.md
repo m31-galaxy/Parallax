@@ -77,6 +77,9 @@
 - [ ] **Schema renames** (classes and fields): SurrealDB has no native rename,
       so these need a copy-migration design — id remapping for class renames,
       reference integrity once record links exist.
+- [ ] **MCP `add_field`**: agents can create classes but not yet extend them
+      with new fields — decide whether field addition joins the MCP surface
+      (natural next step for the distillation vision).
 - [ ] **Record-access authentication** (SurrealDB access methods) — end-user
       style auth, deferred from the v0.1 connect flow (spec §8).
 - [ ] **In-app user management** — UI for `DEFINE USER ... ON DATABASE ROLES ...`

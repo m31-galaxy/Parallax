@@ -105,6 +105,20 @@ async function fetchMeta(db: Surreal, className: string): Promise<MetaRow | unde
     return rows[0];
 }
 
+/**
+ * Whether a class is registered (has a meta record). Guards against
+ * SurrealDB's implicit table creation: only registered classes count.
+ */
+export async function classExists(db: Surreal, className: string): Promise<boolean> {
+    try {
+        return (await fetchMeta(db, className)) !== undefined;
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes(`'${META_TABLE}' does not exist`)) return false;
+        throw err;
+    }
+}
+
 /** Map a raw `DEFINE FIELD ...` string to a FieldView, using meta hints. */
 function parseFieldDefinition(name: string, definition: string, hints: MetaFieldHint[]): FieldView {
     const match = /\sTYPE\s+(.+?)(?:\s+(?:PERMISSIONS|DEFAULT|ASSERT|VALUE|COMMENT)\s|$)/.exec(
