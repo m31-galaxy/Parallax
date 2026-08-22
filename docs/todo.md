@@ -47,3 +47,13 @@
       database (spec §10).
 - [ ] **LLM/agent access**: expose Parallax as a database backend for agent
       memory/context, e.g. for Claude (spec §10).
+- [x] **Distillation harness** (2026-08-22) — end-to-end `Note` → GLiNER2 → `Proposal` →
+      review → committed `Person`/`Event` objects against a real SurrealDB, 19 passing tests.
+      See `experiments/distill-harness/findings.md`.
+- [ ] **GLiNER2 structured extraction is not deterministic across processes** — objects
+      scoring 0.5–0.7 appear and vanish between identical runs (persists with fixed seed,
+      single thread, deterministic algorithms). Decide the mitigation: raise the confidence
+      floor, majority-vote over N passes, or fine-tune to tighten the distribution. Blocks any
+      design that assumes reproducible proposals (e.g. caching distillation by content hash).
+- [ ] Entity resolution needs real design — "Mei's parents" currently becomes one `Person`.
+      No sponsor tool provides this step.
