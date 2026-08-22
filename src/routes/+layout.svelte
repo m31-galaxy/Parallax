@@ -71,7 +71,7 @@
     <div class="workspace">
         <nav class="sidebar" aria-label="Workspace">
             <a
-                class="notes-link"
+                class="action new-object"
                 href={resolve('/new')}
                 aria-current={page.url.pathname === resolve('/new')}
             >
@@ -95,7 +95,13 @@
                     </li>
                 {/each}
             </ul>
-            <a class="new-class" href={resolve('/classes/new')}>+ New class</a>
+            <a
+                class="action new-class"
+                href={resolve('/classes/new')}
+                aria-current={page.url.pathname === resolve('/classes/new')}
+            >
+                + New class
+            </a>
         </nav>
         <div class="content">
             {@render children()}
@@ -158,9 +164,18 @@
         background: #fff;
     }
 
-    .notes-link {
-        font-weight: 600;
+    /* Create actions share one style, distinct from class navigation. */
+    .sidebar a.action {
+        color: #555;
+        font-size: 0.9rem;
+    }
+
+    .new-object {
         margin-bottom: 0.75rem;
+    }
+
+    .new-class {
+        margin-top: 0.75rem;
     }
 
     .sidebar h2 {
@@ -195,12 +210,6 @@
     .sidebar a[aria-current='true'] {
         background: #e8e8e8;
         font-weight: 600;
-    }
-
-    .new-class {
-        margin-top: 0.75rem;
-        color: #555;
-        font-size: 0.9rem;
     }
 
     .side-error {
