@@ -20,6 +20,7 @@ No database required.
 """
 
 import hashlib
+import os
 import json
 import subprocess
 import sys
@@ -51,6 +52,12 @@ EVENT_SCHEMA = {
 
 
 def worker():
+    # The GLiNER2 banner contains an emoji; on Windows a subprocess inherits a
+    # cp1252 stdout and dies printing it. Force UTF-8 before importing anything
+    # that might print.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
     import torch
 
     torch.manual_seed(0)
@@ -133,12 +140,14 @@ def main(trials):
 
     results = []
     for trial in range(1, trials + 1):
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
         proc = subprocess.run(
             [sys.executable, str(Path(__file__)), "--worker"],
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
+            env=env,
         )
         payload = next(
             (ln[len("@@RESULT@@"):] for ln in proc.stdout.splitlines()

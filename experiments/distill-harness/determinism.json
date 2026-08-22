@@ -7,119 +7,6 @@
       "structured": [
         {
           "name": "breakfast",
-          "confidence": 0.928767,
-          "location": "Café Lumen on Bridge Street"
-        },
-        {
-          "name": "breakfast",
-          "confidence": 0.500501,
-          "location": null
-        },
-        {
-          "name": "stats problem set",
-          "confidence": 0.603215,
-          "location": "Robinson Library"
-        },
-        {
-          "name": "stats problem set",
-          "confidence": 0.674131,
-          "location": "Robinson Library"
-        },
-        {
-          "name": "Mei's birthday picnic",
-          "confidence": 0.921851,
-          "location": "Victoria Park"
-        },
-        {
-          "name": "Dinner",
-          "confidence": 0.956555,
-          "location": "home"
-        }
-      ],
-      "entities": [
-        [
-          "event",
-          "Dinner",
-          0.861174
-        ],
-        [
-          "event",
-          "birthday picnic",
-          0.88661
-        ],
-        [
-          "event",
-          "thesis defence",
-          0.951451
-        ],
-        [
-          "location",
-          "Bridge Street",
-          0.86948
-        ],
-        [
-          "location",
-          "Café Lumen",
-          0.978729
-        ],
-        [
-          "location",
-          "Eastway",
-          0.794391
-        ],
-        [
-          "location",
-          "Robinson Library",
-          0.981132
-        ],
-        [
-          "location",
-          "Victoria Park",
-          0.994259
-        ],
-        [
-          "location",
-          "climbing gym",
-          0.921983
-        ],
-        [
-          "location",
-          "home",
-          0.869912
-        ],
-        [
-          "person",
-          "Anna",
-          0.999908
-        ],
-        [
-          "person",
-          "Dev",
-          0.999874
-        ],
-        [
-          "person",
-          "Mei",
-          0.988352
-        ],
-        [
-          "person",
-          "Mum",
-          0.973908
-        ],
-        [
-          "person",
-          "Tom",
-          0.96984
-        ]
-      ]
-    },
-    {
-      "content_sha": "76b87202a149f9dc",
-      "torch": "2.13.0+cpu",
-      "structured": [
-        {
-          "name": "breakfast",
           "confidence": 0.920359,
           "location": "Café Lumen on Bridge Street"
         },
@@ -146,242 +33,6 @@
         {
           "name": "Dinner",
           "confidence": 0.961084,
-          "location": "home"
-        }
-      ],
-      "entities": [
-        [
-          "event",
-          "Dinner",
-          0.861174
-        ],
-        [
-          "event",
-          "birthday picnic",
-          0.88661
-        ],
-        [
-          "event",
-          "thesis defence",
-          0.951451
-        ],
-        [
-          "location",
-          "Bridge Street",
-          0.86948
-        ],
-        [
-          "location",
-          "Café Lumen",
-          0.978729
-        ],
-        [
-          "location",
-          "Eastway",
-          0.794391
-        ],
-        [
-          "location",
-          "Robinson Library",
-          0.981132
-        ],
-        [
-          "location",
-          "Victoria Park",
-          0.994259
-        ],
-        [
-          "location",
-          "climbing gym",
-          0.921983
-        ],
-        [
-          "location",
-          "home",
-          0.869912
-        ],
-        [
-          "person",
-          "Anna",
-          0.999908
-        ],
-        [
-          "person",
-          "Dev",
-          0.999874
-        ],
-        [
-          "person",
-          "Mei",
-          0.988352
-        ],
-        [
-          "person",
-          "Mum",
-          0.973908
-        ],
-        [
-          "person",
-          "Tom",
-          0.96984
-        ]
-      ]
-    },
-    {
-      "content_sha": "76b87202a149f9dc",
-      "torch": "2.13.0+cpu",
-      "structured": [
-        {
-          "name": "Saturday 22 August",
-          "confidence": 0.525402,
-          "location": null
-        },
-        {
-          "name": "breakfast",
-          "confidence": 0.922404,
-          "location": "Café Lumen on Bridge Street"
-        },
-        {
-          "name": "thesis defence",
-          "confidence": 0.792137,
-          "location": null
-        },
-        {
-          "name": "stats problem set",
-          "confidence": 0.629956,
-          "location": "Robinson Library"
-        },
-        {
-          "name": "stats problem set",
-          "confidence": 0.68312,
-          "location": "Robinson Library"
-        },
-        {
-          "name": "Mei's birthday picnic",
-          "confidence": 0.927228,
-          "location": "Victoria Park"
-        },
-        {
-          "name": "Dinner",
-          "confidence": 0.955336,
-          "location": "home"
-        }
-      ],
-      "entities": [
-        [
-          "event",
-          "Dinner",
-          0.861174
-        ],
-        [
-          "event",
-          "birthday picnic",
-          0.88661
-        ],
-        [
-          "event",
-          "thesis defence",
-          0.951451
-        ],
-        [
-          "location",
-          "Bridge Street",
-          0.86948
-        ],
-        [
-          "location",
-          "Café Lumen",
-          0.978729
-        ],
-        [
-          "location",
-          "Eastway",
-          0.794391
-        ],
-        [
-          "location",
-          "Robinson Library",
-          0.981132
-        ],
-        [
-          "location",
-          "Victoria Park",
-          0.994259
-        ],
-        [
-          "location",
-          "climbing gym",
-          0.921983
-        ],
-        [
-          "location",
-          "home",
-          0.869912
-        ],
-        [
-          "person",
-          "Anna",
-          0.999908
-        ],
-        [
-          "person",
-          "Dev",
-          0.999874
-        ],
-        [
-          "person",
-          "Mei",
-          0.988352
-        ],
-        [
-          "person",
-          "Mum",
-          0.973908
-        ],
-        [
-          "person",
-          "Tom",
-          0.96984
-        ]
-      ]
-    },
-    {
-      "content_sha": "76b87202a149f9dc",
-      "torch": "2.13.0+cpu",
-      "structured": [
-        {
-          "name": "breakfast",
-          "confidence": 0.931092,
-          "location": "Café Lumen on Bridge Street"
-        },
-        {
-          "name": "thesis defence",
-          "confidence": 0.80232,
-          "location": null
-        },
-        {
-          "name": "stats problem set",
-          "confidence": 0.669392,
-          "location": "Robinson Library"
-        },
-        {
-          "name": "stats problem set",
-          "confidence": 0.690507,
-          "location": "Robinson Library"
-        },
-        {
-          "name": "Mei's birthday picnic",
-          "confidence": 0.91842,
-          "location": "Victoria Park"
-        },
-        {
-          "name": "climbing",
-          "confidence": 0.506464,
-          "location": "climbing gym on Eastway"
-        },
-        {
-          "name": "Dinner",
-          "confidence": 0.954379,
           "location": "home"
         }
       ],
@@ -587,37 +238,386 @@
       "structured": [
         {
           "name": "breakfast",
-          "confidence": 0.924997,
+          "confidence": 0.930539,
           "location": "Café Lumen on Bridge Street"
         },
         {
           "name": "thesis defence",
-          "confidence": 0.805063,
+          "confidence": 0.799029,
           "location": null
         },
         {
           "name": "stats problem set",
-          "confidence": 0.649937,
+          "confidence": 0.65545,
           "location": "Robinson Library"
         },
         {
           "name": "stats problem set",
-          "confidence": 0.688279,
+          "confidence": 0.684759,
           "location": "Robinson Library"
         },
         {
           "name": "Mei's birthday picnic",
-          "confidence": 0.91699,
+          "confidence": 0.915711,
           "location": "Victoria Park"
         },
         {
           "name": "climbing",
-          "confidence": 0.513441,
+          "confidence": 0.523575,
           "location": "climbing gym on Eastway"
         },
         {
           "name": "Dinner",
-          "confidence": 0.95059,
+          "confidence": 0.953376,
+          "location": "home"
+        }
+      ],
+      "entities": [
+        [
+          "event",
+          "Dinner",
+          0.861174
+        ],
+        [
+          "event",
+          "birthday picnic",
+          0.88661
+        ],
+        [
+          "event",
+          "thesis defence",
+          0.951451
+        ],
+        [
+          "location",
+          "Bridge Street",
+          0.86948
+        ],
+        [
+          "location",
+          "Café Lumen",
+          0.978729
+        ],
+        [
+          "location",
+          "Eastway",
+          0.794391
+        ],
+        [
+          "location",
+          "Robinson Library",
+          0.981132
+        ],
+        [
+          "location",
+          "Victoria Park",
+          0.994259
+        ],
+        [
+          "location",
+          "climbing gym",
+          0.921983
+        ],
+        [
+          "location",
+          "home",
+          0.869912
+        ],
+        [
+          "person",
+          "Anna",
+          0.999908
+        ],
+        [
+          "person",
+          "Dev",
+          0.999874
+        ],
+        [
+          "person",
+          "Mei",
+          0.988352
+        ],
+        [
+          "person",
+          "Mum",
+          0.973908
+        ],
+        [
+          "person",
+          "Tom",
+          0.96984
+        ]
+      ]
+    },
+    {
+      "content_sha": "76b87202a149f9dc",
+      "torch": "2.13.0+cpu",
+      "structured": [
+        {
+          "name": "Saturday 22 August",
+          "confidence": 0.525402,
+          "location": null
+        },
+        {
+          "name": "breakfast",
+          "confidence": 0.922404,
+          "location": "Café Lumen on Bridge Street"
+        },
+        {
+          "name": "thesis defence",
+          "confidence": 0.792137,
+          "location": null
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.629956,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.68312,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "Mei's birthday picnic",
+          "confidence": 0.927228,
+          "location": "Victoria Park"
+        },
+        {
+          "name": "Dinner",
+          "confidence": 0.955336,
+          "location": "home"
+        }
+      ],
+      "entities": [
+        [
+          "event",
+          "Dinner",
+          0.861174
+        ],
+        [
+          "event",
+          "birthday picnic",
+          0.88661
+        ],
+        [
+          "event",
+          "thesis defence",
+          0.951451
+        ],
+        [
+          "location",
+          "Bridge Street",
+          0.86948
+        ],
+        [
+          "location",
+          "Café Lumen",
+          0.978729
+        ],
+        [
+          "location",
+          "Eastway",
+          0.794391
+        ],
+        [
+          "location",
+          "Robinson Library",
+          0.981132
+        ],
+        [
+          "location",
+          "Victoria Park",
+          0.994259
+        ],
+        [
+          "location",
+          "climbing gym",
+          0.921983
+        ],
+        [
+          "location",
+          "home",
+          0.869912
+        ],
+        [
+          "person",
+          "Anna",
+          0.999908
+        ],
+        [
+          "person",
+          "Dev",
+          0.999874
+        ],
+        [
+          "person",
+          "Mei",
+          0.988352
+        ],
+        [
+          "person",
+          "Mum",
+          0.973908
+        ],
+        [
+          "person",
+          "Tom",
+          0.96984
+        ]
+      ]
+    },
+    {
+      "content_sha": "76b87202a149f9dc",
+      "torch": "2.13.0+cpu",
+      "structured": [
+        {
+          "name": "Saturday 22 August",
+          "confidence": 0.535693,
+          "location": null
+        },
+        {
+          "name": "breakfast",
+          "confidence": 0.922388,
+          "location": "Café Lumen on Bridge Street"
+        },
+        {
+          "name": "thesis defence",
+          "confidence": 0.780818,
+          "location": null
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.626943,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.685255,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "Mei's birthday picnic",
+          "confidence": 0.925475,
+          "location": "Victoria Park"
+        },
+        {
+          "name": "Dinner",
+          "confidence": 0.957224,
+          "location": "home"
+        }
+      ],
+      "entities": [
+        [
+          "event",
+          "Dinner",
+          0.861174
+        ],
+        [
+          "event",
+          "birthday picnic",
+          0.88661
+        ],
+        [
+          "event",
+          "thesis defence",
+          0.951451
+        ],
+        [
+          "location",
+          "Bridge Street",
+          0.86948
+        ],
+        [
+          "location",
+          "Café Lumen",
+          0.978729
+        ],
+        [
+          "location",
+          "Eastway",
+          0.794391
+        ],
+        [
+          "location",
+          "Robinson Library",
+          0.981132
+        ],
+        [
+          "location",
+          "Victoria Park",
+          0.994259
+        ],
+        [
+          "location",
+          "climbing gym",
+          0.921983
+        ],
+        [
+          "location",
+          "home",
+          0.869912
+        ],
+        [
+          "person",
+          "Anna",
+          0.999908
+        ],
+        [
+          "person",
+          "Dev",
+          0.999874
+        ],
+        [
+          "person",
+          "Mei",
+          0.988352
+        ],
+        [
+          "person",
+          "Mum",
+          0.973908
+        ],
+        [
+          "person",
+          "Tom",
+          0.96984
+        ]
+      ]
+    },
+    {
+      "content_sha": "76b87202a149f9dc",
+      "torch": "2.13.0+cpu",
+      "structured": [
+        {
+          "name": "breakfast",
+          "confidence": 0.928767,
+          "location": "Café Lumen on Bridge Street"
+        },
+        {
+          "name": "breakfast",
+          "confidence": 0.500501,
+          "location": null
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.603215,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.674131,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "Mei's birthday picnic",
+          "confidence": 0.921851,
+          "location": "Victoria Park"
+        },
+        {
+          "name": "Dinner",
+          "confidence": 0.956555,
           "location": "home"
         }
       ],
