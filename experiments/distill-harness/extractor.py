@@ -24,6 +24,9 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 MODEL_ID = "fastino/gliner2-base-v1"
+# Larger encoder (340M vs 205M) - better extraction for the same request shape.
+# The default when running against Pioneer, where model size costs no local RAM.
+PIONEER_MODEL_ID = "fastino/gliner2-large-v1"
 PIONEER_ENDPOINT = "https://api.pioneer.ai/inference"
 DEFAULT_THRESHOLD = 0.5
 
@@ -89,7 +92,7 @@ class PioneerExtractor:
 
     name = "pioneer"
 
-    def __init__(self, model_id: str = MODEL_ID, api_key: str | None = None):
+    def __init__(self, model_id: str = PIONEER_MODEL_ID, api_key: str | None = None):
         self.model_id = model_id
         self.api_key = (api_key or os.environ.get("PIONEER_API_KEY", "")).strip()
         if not self.api_key:
@@ -237,11 +240,17 @@ def _attach_spans(structures: dict, text: str) -> dict:
     return result
 
 
-def load(kind: str | None = None):
-    """Build the configured backend. PARALLAX_EXTRACTOR=local|pioneer."""
+def load(kind: str | None = None, model_id: str | None = None):
+    """Build the configured backend.
+
+    kind:     PARALLAX_EXTRACTOR=local|pioneer (default: local).
+    model_id: PARALLAX_MODEL overrides the model, e.g.
+              fastino/gliner2-large-v1. Defaults per backend.
+    """
     kind = (kind or os.environ.get("PARALLAX_EXTRACTOR", "local")).strip().lower()
+    model_id = model_id or os.environ.get("PARALLAX_MODEL") or None
     if kind == "local":
-        return LocalExtractor()
+        return LocalExtractor(model_id or MODEL_ID)
     if kind == "pioneer":
-        return PioneerExtractor()
+        return PioneerExtractor(model_id or PIONEER_MODEL_ID)
     raise ExtractionError(f"unknown extractor {kind!r} (expected 'local' or 'pioneer')")
