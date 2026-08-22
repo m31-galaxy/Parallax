@@ -13,6 +13,9 @@ All design decisions, scope, data model, architecture, and planning live there.
 4. If code and spec disagree, the spec wins: fix the code or amend the spec
    explicitly — never let them drift silently.
 5. Undecided issues go in the spec's Open questions section, not into code.
+6. **All tasks, deferred actions, backlog items, and future planned features go
+   in `docs/todo.md`** — never scattered across code comments or other docs.
+   `docs/spec.md` stays decisions/design only.
 
 CLAUDE.md imports this file via Claude Code's `@AGENTS.md` syntax, so Claude
 Code reads these same rules. Edit this file only; keep CLAUDE.md as just the
