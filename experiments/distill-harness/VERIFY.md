@@ -1,5 +1,10 @@
 # Verifying the harness yourself
 
+**Run every command from the repository root** (`T:/Hackathons/Parallax`), not from this
+directory. All paths below are relative to it. Running them from inside
+`experiments/distill-harness/` fails with `can't open file ... run_demo.py:
+[Errno 2] No such file or directory`.
+
 Every command here was run before being written down. The point of the ordering is
 that each step trusts less of my code than the one before it, ending with checks
 that would catch me if the results were faked.
@@ -7,17 +12,34 @@ that would catch me if the results were faked.
 ## 0. Start the database
 
 ```bash
-surreal start --user root --pass root --bind 127.0.0.1:8000 "rocksdb:.data"
+surreal start --user root --pass root --bind 127.0.0.1:8000 "rocksdb:$(pwd)/experiments/distill-harness/.data"
 ```
+
+The absolute `$(pwd)` matters: with a relative path the database lands wherever the
+server happened to be started, so a stray `.data/` can appear in the repo root.
 
 Leave it running in its own terminal. If `surreal` is not on PATH, use the full
 path from `winget`:
 `"$LOCALAPPDATA/Microsoft/WinGet/Packages/SurrealDB.SurrealDB_Microsoft.Winget.Source_8wekyb3d8bbwe/surreal.exe"`
 
+If it exits immediately with `Only one usage of each socket address ... (os error
+10048)`, port 8000 is already held by an earlier server. Find and stop it:
+
+```powershell
+Get-Process surreal | Stop-Process
+```
+
+A client connecting during that window fails inside `socket.create_connection`;
+confirm the server is up before continuing:
+
+```bash
+curl -s -m 5 -o /dev/null -w "health: HTTP %{http_code}" http://127.0.0.1:8000/health
+```
+
 ## 1. Watch the pipeline run
 
 ```bash
-uv run --with "gliner2[local]" --with surrealdb python run_demo.py
+uv run --with "gliner2[local]" --with surrealdb python experiments/distill-harness/run_demo.py
 ```
 
 Seven numbered steps: schema, insert Note, distill, provenance check, review,
@@ -77,7 +99,7 @@ Interesting variants:
 ## 3. Run the tests
 
 ```bash
-uv run --with "gliner2[local]" --with surrealdb --with pytest python -m pytest test_harness.py -v
+uv run --with "gliner2[local]" --with surrealdb --with pytest python -m pytest experiments/distill-harness/test_harness.py -v
 ```
 
 Expect `19 passed` in roughly 80 seconds.
@@ -85,7 +107,7 @@ Expect `19 passed` in roughly 80 seconds.
 ## 4. Confirm the tests have teeth
 
 A passing suite proves nothing if the tests cannot fail. Break the offset
-remapping on purpose - line 113 of distill.py, inside `extract_events`:
+remapping on purpose - line 113 of experiments/distill-harness/distill.py, inside `extract_events`:
 
 ```python
 def glob(v):
@@ -95,7 +117,7 @@ def glob(v):
 Then:
 
 ```bash
-uv run --with "gliner2[local]" --with surrealdb --with pytest python -m pytest test_harness.py -q -k provenance
+uv run --with "gliner2[local]" --with surrealdb --with pytest python -m pytest experiments/distill-harness/test_harness.py -q -k provenance
 ```
 
 Actual result - the provenance tests fail immediately and specifically:
@@ -112,7 +134,7 @@ text. Fabricated output cannot satisfy it.
 
 ## 5. Confirm the model reads your input, not a script
 
-Edit `journal.txt` - rename Anna to something else, or add a person - then rerun
+Edit `experiments/distill-harness/journal.txt` - rename Anna to something else, or add a person - then rerun
 step 1. The extracted objects must track your edit. `test_output_tracks_a_mutated_input`
 automates exactly this, but doing it by hand is more convincing.
 

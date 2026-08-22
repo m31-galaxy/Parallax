@@ -22,8 +22,8 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# distillation harness local database
-experiments/distill-harness/.data/
+# local SurrealDB data directories, wherever a server happens to be started
+.data/
 
 # python
 __pycache__/
