@@ -113,7 +113,8 @@ Terminology borrows deliberately from OOP:
   edit the plural name. No field removal, class deletion, or renames yet —
   destructive schema operations are backlog ([todo.md](todo.md)).
 - **Object CRUD (v0.1):** the class page is **objects-first** — a table of all
-  fields with New/Edit/Delete (delete behind a confirm) — with the schema
+  fields with New/Edit/Delete (delete behind an inline two-step confirm —
+  never `window.confirm`, which embedded browsers suppress silently) — with the schema
   designer on a secondary **Schema** tab. Forms are generated from the live
   schema: text → input, long text → textarea, number → number input,
   boolean → checkbox (required) or yes/no/— select (optional, preserving

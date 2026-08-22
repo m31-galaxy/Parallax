@@ -131,6 +131,7 @@
     function startEdit(note: NoteRecord): void {
         editingId = String(note.id);
         editDraft = note.content;
+        confirmingDelete = null;
         actionError = null;
     }
 
@@ -148,8 +149,21 @@
         }
     }
 
+    // Two-step confirm instead of window.confirm: native dialogs are
+    // suppressed in some embedded browsers, silently cancelling the delete.
+    let confirmingDelete = $state<string | null>(null);
+
+    function requestRemove(note: NoteRecord): void {
+        const id = String(note.id);
+        if (confirmingDelete !== id) {
+            confirmingDelete = id;
+            return;
+        }
+        confirmingDelete = null;
+        void remove(note);
+    }
+
     async function remove(note: NoteRecord): Promise<void> {
-        if (!window.confirm('Delete this note? This cannot be undone.')) return;
         busy = true;
         actionError = null;
         try {
@@ -236,15 +250,23 @@
                                 <button disabled={busy} onclick={() => void saveEdit(note)}>
                                     Save
                                 </button>
-                                <button disabled={busy} onclick={() => (editingId = null)}>
+                                <button
+                                    disabled={busy}
+                                    onclick={() => {
+                                        editingId = null;
+                                        confirmingDelete = null;
+                                    }}
+                                >
                                     Cancel
                                 </button>
                                 <button
                                     class="danger"
                                     disabled={busy}
-                                    onclick={() => void remove(note)}
+                                    onclick={() => requestRemove(note)}
                                 >
-                                    Delete
+                                    {confirmingDelete === String(note.id)
+                                        ? 'Really delete?'
+                                        : 'Delete'}
                                 </button>
                             </div>
                         {:else}

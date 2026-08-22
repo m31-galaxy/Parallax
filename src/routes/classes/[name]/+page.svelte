@@ -38,6 +38,7 @@
         loading.start();
         loadError = null;
         actionError = null;
+        confirmingDelete = null;
         try {
             const view = await getClass(connection.client, name);
             const rows = await listObjects(connection.client, name);
@@ -54,8 +55,21 @@
         }
     }
 
+    // Two-step confirm instead of window.confirm: native dialogs are
+    // suppressed in some embedded browsers, silently cancelling the delete.
+    let confirmingDelete = $state<string | null>(null);
+
+    function requestRemove(record: ObjectRecord): void {
+        const id = objectId(record);
+        if (confirmingDelete !== id) {
+            confirmingDelete = id;
+            return;
+        }
+        confirmingDelete = null;
+        void remove(record);
+    }
+
     async function remove(record: ObjectRecord): Promise<void> {
-        if (!window.confirm(`Delete ${String(record.id)}? This cannot be undone.`)) return;
         busy = true;
         actionError = null;
         try {
@@ -107,8 +121,14 @@
                                     >
                                         Edit
                                     </a>
-                                    <button disabled={busy} onclick={() => void remove(record)}>
-                                        Delete
+                                    <button
+                                        class:danger={confirmingDelete === objectId(record)}
+                                        disabled={busy}
+                                        onclick={() => requestRemove(record)}
+                                    >
+                                        {confirmingDelete === objectId(record)
+                                            ? 'Really delete?'
+                                            : 'Delete'}
                                     </button>
                                 </td>
                             </tr>
@@ -197,6 +217,12 @@
         border-radius: 4px;
         background: #fff;
         cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .row-actions button.danger {
+        color: #b3261e;
+        border-color: #d9a5a1;
     }
 
     .error {
