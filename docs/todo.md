@@ -7,9 +7,10 @@
 
 ## Decisions to discuss with the owner
 
-- [ ] **LLM provider / extraction model for distillation** — deliberately left
-      unfilled (2026-08-22); the owner wants a dedicated discussion later.
-      Record the outcome in spec.md (§6, §11, §12).
+- [x] **LLM provider / extraction model for distillation** — resolved
+      (2026-08-22) to **GLiNER2** (`fastino/gliner2-base-v1`), local weights or
+      Pioneer-hosted, on the `experiment/dynamic-distill` branch; recorded in
+      spec.md (§6, §11). Owner ratifies by merging that branch's PR.
 - [ ] **Test tooling** (Vitest vs `bun test` vs split) — deferred (2026-08-22)
       until the first tests are written.
 - [x] **Formatting tooling** — Prettier chosen and configured (2026-08-22);
@@ -45,8 +46,28 @@
 
 ## v0.2 — Distillation
 
-- [ ] Build distillation v1: manual trigger per note + review (approve/edit/reject)
-      before commit — per spec §6; this flow is temporary/experimental.
+- [x] Build distillation v1: manual trigger per note + review (approve/reject)
+      before commit — per spec §6 (2026-08-22, `experiment/dynamic-distill`).
+      Note-card `Distil` button → database-queued request → local worker runs
+      GLiNER2 → proposals reviewed and committed in-app, with type coercion.
+- [ ] **Edit in the review step**: v1 supports approve/reject only; spec §6's
+      "approve/edit/reject" wants inline editing of a proposal's fields before
+      committing.
+- [ ] **Package/launch the worker**: it currently runs by hand
+      (`experiments/distill-harness/worker.py`); the app shows a "worker must be
+      running" state when it is absent. Decide how it ships — bundled with the
+      Tauri app, a documented dev command, or auto-started.
+- [ ] **Entity resolution**: no sponsor/model provides it — repeated mentions of
+      one entity ("Andy" in two sentences) become two objects. Needs a
+      canonicalisation pass (alias match + merge) before the graph is useful.
+- [ ] **GLiNER2 structured extraction is non-deterministic across runs**: objects
+      near the confidence floor appear and vanish between identical runs
+      (measured in `experiments/distill-harness/findings.md`). Decide the
+      mitigation — raise the floor, majority-vote over N runs, or fine-tune —
+      before anything assumes reproducible proposals.
+- [ ] **Fine-tune GLiNER2** on real notes for the Pioneer side challenge:
+      synthetic/real dataset → LoRA fine-tune → eval vs an LLM baseline on
+      accuracy, latency, and cost. The swappable Pioneer backend is the path in.
 - [ ] After v1 ships: experiment with alternative trigger/commit models
       (auto-trigger on save, proposal inbox, auto-commit with revert) and revisit
       the spec decision.

@@ -177,8 +177,35 @@ anything is committed to the database. This is an explicitly _temporary,
 experimental_ choice — alternative trigger/commit models will be revisited later
 (see [todo.md](todo.md)).
 
-The LLM provider / extraction model is **deliberately undecided** (§12;
-discussion task in [todo.md](todo.md)).
+**Extraction model: GLiNER2** (`fastino/gliner2-base-v1`, a 205M encoder), run
+either from **local weights** (CPU, offline, free) or via **Pioneer's hosted
+inference API** — the same model, selectable per run. Chosen over a general LLM
+because it is cheap enough to run per note, its output maps directly onto
+classes and fields, and it returns confidence and character offsets for
+provenance. The extraction schema is **built at runtime from the user's own
+classes** (`INFO FOR TABLE` for types, `parallax_class` for order and hints), so
+nothing about a user's data is hardcoded. Each field's optional **description**
+(§4) is passed to the model as the field's meaning, which materially improves
+accuracy. Known limits: GLiNER2's structured extraction is **not reproducible
+run-to-run**, and **entity resolution** (collapsing repeated mentions of one
+entity) is not provided by the model and remains unbuilt (both tracked in
+[todo.md](todo.md)).
+
+**How the app runs it (derived).** The browser cannot run the model (GLiNER2 is
+Python; Pioneer's API blocks browser origins via CORS), so the **database is the
+queue**: the app writes a `parallax_distill_request` row, a **local worker
+process** watches for it, runs extraction, and writes `parallax_proposal` rows;
+the app reads those back and does review/commit as ordinary SurrealQL. The app
+therefore stays a pure SPA talking only to SurrealDB (§3, §7); the worker is
+external tooling, like any other database client. Proposals carry the source
+note, per-field provenance offsets, confidence, and which backend produced them.
+Committing coerces each extracted string to its field's type; a value that will
+not coerce, or a missing required field, holds that proposal for the user rather
+than being dropped or force-committed.
+
+The current implementation lives on the `experiment/dynamic-distill` branch
+under `experiments/distill-harness/` (extraction, worker) plus
+`src/lib/db/distill.ts` and the note-card `Distil` panel (request + review UI).
 
 ## 7. Clients & stack
 
@@ -331,13 +358,15 @@ Details and status tracked in [todo.md](todo.md):
 | 2026-08-22 | Note capture v0.1: card-like UI only (quick capture + card grid, in-place edit); document-like editor deferred to todo.md (§5)                                                                                                                                  |
 | 2026-08-22 | Notes placement: pinned sidebar "Notes" section; Note is also an ordinary class with the standard Objects/Schema views (§5)                                                                                                                                     |
 | 2026-08-22 | Note provisioning: automatic on first use, idempotent (DEFINE IF NOT EXISTS + INSERT IGNORE meta); `created` enforced by the DB via DEFAULT time::now() READONLY (§5)                                                                                           |
+| 2026-08-22 | Distillation extraction model: **GLiNER2** (`fastino/gliner2-base-v1`), runnable from local weights or Pioneer's hosted API; supersedes the deferred "LLM provider" open question. Schema built at runtime from the user's classes; not hardcoded (§6)          |
+| 2026-08-22 | Field descriptions: optional per-field hint in the class designer, stored on `parallax_class` (`fields[*].hint`), passed to the extractor as the field's meaning; ignored by the DB engine (§4, §6)                                                             |
+| 2026-08-22 | Distillation runtime (derived): database-as-queue — app writes a `parallax_distill_request`, a local worker extracts and writes `parallax_proposal` rows, app reviews/commits as SurrealQL; app stays a pure SPA (§6)                                           |
+| 2026-08-22 | Proposal commit: coerce each extracted string to its field type; unparseable values and missing required fields hold the proposal for the user rather than being dropped or force-committed (§6)                                                                |
 
 ## 12. Open questions
 
 Undecided design decisions (ask the owner before acting on any of these):
 
-- LLM provider / extraction model for distillation — deferred by the owner;
-  discussion task in [todo.md](todo.md).
 - Long-term distillation trigger/commit model (current manual + review flow is
   temporary; auto-trigger, inbox, auto-commit variants to be experimented with).
 - Test tooling (Vitest vs `bun test` vs a split) — deferred until the first
