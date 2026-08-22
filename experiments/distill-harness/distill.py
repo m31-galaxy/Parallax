@@ -1,49 +1,46 @@
-"""Distillation extractor: Note.content -> reviewable Proposals.
+"""Distil a Note into proposals for the user's own classes.
 
-Implements the pipeline spec section 6 describes, using GLiNER2 as the extraction
-model. Carries the two findings from experiments/gliner2-smoke/findings.md:
+The pipeline spec section 6 describes, with nothing about the user's data
+hardcoded: the classes come from the database (schema_builder), the notes are
+whatever the app wrote, and the model only ever fills in fields the user
+defined.
 
-  1. Paragraph chunking is mandatory. Whole-note structured extraction collapses
-     several distinct events into one merged object.
-  2. A dedup + confidence-threshold post-pass is required. Raw model output
-     contains duplicate objects and a spurious event built from the date header.
+Two behaviours carried over from the local-GLiNER2 harness, both earned rather
+than assumed (see findings.md):
 
-Nothing here writes Person/Event rows: distillation only ever produces Proposals
-with status="pending". Committing is review.py's job (spec section 6, review
-before commit).
+  1. Paragraph chunking. Extracting a whole note at once collapses several
+     distinct objects into one merged object.
+  2. A post-pass. Raw output repeats near-identical objects and invents one from
+     a bare date header, so low-confidence rows are dropped and duplicates are
+     collapsed.
+
+Nothing here writes into a user class. Distillation only ever produces
+parallax_proposal rows with status="pending"; review.py commits them.
 """
 
 import re
 import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from gliner2 import GLiNER2  # noqa: E402
+import extractor as extractor_mod  # noqa: E402
+import schema_builder  # noqa: E402
 
-MODEL_ID = "fastino/gliner2-base-v1"
+PROPOSAL_TABLE = "parallax_proposal"
+PROPOSAL_SCHEMA = Path(__file__).parent / "proposals.surql"
 
-# Confidence floor. Tuned to the smoke-test finding that the "Saturday 22 August"
-# header artefact scored 0.58 while every genuine event scored >= 0.87.
+# Confidence floor. Tuned on the local model, where the date-header artefact
+# scored 0.5 and genuine objects scored 0.9+. Objects between roughly 0.5 and
+# 0.8 are unstable run to run, so this is a threshold, not a guarantee.
 CONF_FLOOR = 0.60
 
-EVENT_SCHEMA = {
-    "event": [
-        "name::str::Short name of the activity or occasion, e.g. breakfast, picnic, climbing",
-        "location::str::The place where it happened",
-        "people::list::Names of people present",
-        "time::str::Clock time or day it happened",
-    ]
-}
 
-_model_cache = {}
-
-
-def load_model(model_id: str = MODEL_ID):
-    """Load GLiNER2 once per process (weights are ~450MB)."""
-    if model_id not in _model_cache:
-        _model_cache[model_id] = GLiNER2.from_pretrained(model_id)
-    return _model_cache[model_id]
+def ensure_proposal_table(db):
+    """Idempotent, like the app's ensureNoteClass."""
+    db.query(PROPOSAL_SCHEMA.read_text(encoding="utf-8"))
 
 
 # --- chunking ---------------------------------------------------------------
@@ -52,8 +49,8 @@ def load_model(model_id: str = MODEL_ID):
 def chunk_with_offsets(text: str):
     """Split on blank lines, keeping each chunk's start offset in the full text.
 
-    The offset is what makes provenance work: the model sees a paragraph and
-    reports positions within it, but a Proposal must point into the whole note.
+    The offset is what makes provenance work: the model sees one paragraph and
+    reports positions within it, but a proposal must point into the whole note.
     """
     chunks = []
     for match in re.finditer(r"[^\n](?:[^\n]|\n(?!\s*\n))*", text):
@@ -61,197 +58,157 @@ def chunk_with_offsets(text: str):
         stripped = raw.strip()
         if not stripped:
             continue
-        start = match.start() + (len(raw) - len(raw.lstrip()))
-        chunks.append((stripped, start))
+        chunks.append((stripped, match.start() + (len(raw) - len(raw.lstrip()))))
     return chunks
-
-
-# --- normalisation / entity resolution --------------------------------------
-
-_POSSESSIVE = re.compile(r"[’']s$")
-
-
-def normalise_person(raw: str) -> str:
-    """Canonical form of a person mention.
-
-    Entity resolution is not provided by any extraction model - GLiNER2 returns
-    spans (Mei's, Mei), not identities. This is the minimum viable collapse:
-    strip possessives and leading articles, squash whitespace, capitalise.
-    """
-    name = raw.strip().strip(".,;:")
-    name = _POSSESSIVE.sub("", name)
-    name = re.sub(r"^(?:my|the|a)\s+", "", name, flags=re.I)
-    name = re.sub(r"\s+", " ", name)
-    return name[:1].upper() + name[1:] if name else name
-
-
-def normalise_event(raw: str) -> str:
-    return re.sub(r"\s+", " ", raw.strip().strip(".,;:")).lower()
 
 
 # --- extraction -------------------------------------------------------------
 
 
-def _field(obj, key):
-    """Pull a scalar field from GLiNER2 output, tolerating nulls."""
-    val = obj.get(key)
-    if not val or not isinstance(val, dict):
-        return None, None, None
-    return val.get("text"), val.get("start"), val.get("end")
+def _value_of(cell):
+    """A field's text, whether the backend returned a dict or a bare string."""
+    if isinstance(cell, dict):
+        return cell.get("text")
+    if isinstance(cell, str):
+        return cell
+    return None
 
 
-def extract_events(model, content: str):
-    """Run GLiNER2 per paragraph and return event dicts with global offsets."""
-    events = []
+def _confidence_of(obj):
+    """Mean confidence across the fields that reported one.
+
+    Objects are scored as a whole because the post-pass drops or keeps a whole
+    object; per-field scores are kept in provenance for the review UI.
+    """
+    scores = []
+    for cell in obj.values():
+        cells = cell if isinstance(cell, list) else [cell]
+        for item in cells:
+            if isinstance(item, dict) and isinstance(item.get("confidence"), (int, float)):
+                scores.append(float(item["confidence"]))
+    return sum(scores) / len(scores) if scores else 1.0
+
+
+def extract_from_note(model, content, classes):
+    """Run the extractor per paragraph. Returns rows with global offsets."""
+    structures = schema_builder.build_structures(classes)
+    if not structures:
+        return []
+
+    rows = []
     for para_index, (para, para_start) in enumerate(chunk_with_offsets(content)):
-        out = model.extract_json(
-            para, EVENT_SCHEMA, include_confidence=True, include_spans=True
-        )
+        result = model.extract(para, structures)
 
-        def glob(v):
-            """Local paragraph offset -> global note offset."""
-            return None if v is None else para_start + v
+        for class_name, objects in result.items():
+            for obj in objects:
+                payload, provenance = {}, {}
 
-        for obj in out.get("event", []):
-            name, n_start, n_end = _field(obj, "name")
-            if not name:
-                continue
+                for field, cell in obj.items():
+                    cells = cell if isinstance(cell, list) else [cell]
+                    texts, spans = [], []
+                    for item in cells:
+                        text = _value_of(item)
+                        if not text:
+                            continue
+                        texts.append(text)
+                        if isinstance(item, dict) and item.get("start") is not None:
+                            spans.append(
+                                {
+                                    "start": para_start + item["start"],
+                                    "end": para_start + item["end"],
+                                    "confidence": item.get("confidence"),
+                                }
+                            )
+                    if not texts:
+                        continue
+                    # A list-valued field keeps every value; a scalar keeps one.
+                    payload[field] = texts if isinstance(cell, list) else texts[0]
+                    if spans:
+                        provenance[field] = spans if isinstance(cell, list) else spans[0]
 
-            loc, l_start, l_end = _field(obj, "location")
-            when, t_start, t_end = _field(obj, "time")
-
-            people = []
-            for person in obj.get("people") or []:
-                text = person.get("text")
-                if not text:
-                    continue
-                people.append(
-                    {
-                        "name": normalise_person(text),
-                        "mention": text,
-                        "confidence": float(person.get("confidence", 0.0)),
-                        "start": glob(person.get("start")),
-                        "end": glob(person.get("end")),
-                    }
-                )
-
-            events.append(
-                {
-                    "para_index": para_index,
-                    "name": name,
-                    "location": loc,
-                    "time": when,
-                    "people": people,
-                    "confidence": float(obj["name"].get("confidence", 0.0)),
-                    "provenance": {
-                        "name": {"start": glob(n_start), "end": glob(n_end)},
-                        "location": {"start": glob(l_start), "end": glob(l_end)},
-                        "time": {"start": glob(t_start), "end": glob(t_end)},
-                    },
-                }
-            )
-    return events
+                if payload:
+                    rows.append(
+                        {
+                            "para_index": para_index,
+                            "class_name": class_name,
+                            "payload": payload,
+                            "provenance": provenance,
+                            "confidence": _confidence_of(obj),
+                        }
+                    )
+    return rows
 
 
 # --- post-pass --------------------------------------------------------------
 
 
-def post_pass(events):
-    """Drop low-confidence artefacts and collapse duplicates.
+def _identity(row):
+    """Values that make two extractions 'the same object'.
 
-    Raw GLiNER2 output repeats near-identical objects (the smoke test returned
-    breakfast and stats problem set twice each) and invents an event from a bare
-    date header. Both are fixed deterministically, not by the model.
+    Uses every scalar field rather than a chosen key field, because the user's
+    classes have no notion of a primary field and we must not invent one.
     """
-    kept = [e for e in events if e["confidence"] >= CONF_FLOOR]
+    parts = []
+    for field in sorted(row["payload"]):
+        value = row["payload"][field]
+        if isinstance(value, str):
+            parts.append(f"{field}={re.sub(r'\\s+', ' ', value.strip()).lower()}")
+    return (row["para_index"], row["class_name"], tuple(parts))
+
+
+def post_pass(rows, floor=CONF_FLOOR):
+    """Drop low-confidence rows, then collapse duplicates keeping the fullest."""
+    kept = [r for r in rows if r["confidence"] >= floor]
 
     best = {}
-    for event in kept:
-        key = (event["para_index"], normalise_event(event["name"]))
-        filled = sum(1 for f in ("location", "time") if event.get(f))
-        rank = (filled + len(event["people"]), event["confidence"])
+    for row in kept:
+        key = _identity(row)
+        rank = (len(row["payload"]), row["confidence"])
         if key not in best or rank > best[key][0]:
-            best[key] = (rank, event)
-
-    return sorted(
-        (event for _, event in best.values()),
-        key=lambda e: (e["provenance"]["name"]["start"] is None,
-                       e["provenance"]["name"]["start"]),
-    )
+            best[key] = (rank, row)
+    return [row for _, row in best.values()]
 
 
 # --- proposals --------------------------------------------------------------
 
-_CREATE_PROPOSAL = """
-CREATE Proposal SET
-    note = $note,
-    class_name = $class_name,
-    payload = $payload,
-    confidence = $confidence,
-    provenance = $provenance,
-    status = "pending";
+_CREATE = f"""
+CREATE {PROPOSAL_TABLE} SET
+    note = $note, class_name = $class_name, payload = $payload,
+    provenance = $provenance, unparsed = {{}}, confidence = $confidence,
+    status = "pending", extractor = $extractor;
 """
 
 
-def distill(db, note_id, model=None):
-    """Extract from a stored Note and write pending Proposals. Returns them."""
-    model = model or load_model()
+def distill_note(db, note_id, model=None, classes=None):
+    """Extract from one stored Note and write pending proposals."""
+    model = model or extractor_mod.load()
+    classes = classes if classes is not None else schema_builder.load_classes(db)
 
     rows = db.query("SELECT content FROM $note;", {"note": note_id})
     if not rows:
         raise ValueError(f"no such note: {note_id}")
     content = rows[0]["content"]
 
-    events = post_pass(extract_events(model, content))
-
-    # Person proposals: one per canonical name across all events.
-    people = {}
-    for event in events:
-        for person in event["people"]:
-            entry = people.setdefault(
-                person["name"], {"confidence": 0.0, "mentions": [], "provenance": []}
-            )
-            entry["confidence"] = max(entry["confidence"], person["confidence"])
-            if person["mention"] not in entry["mentions"]:
-                entry["mentions"].append(person["mention"])
-            entry["provenance"].append({"start": person["start"], "end": person["end"]})
+    ensure_proposal_table(db)
 
     proposals = []
-
-    for name, entry in people.items():
-        proposals.append(
-            db.query(
-                _CREATE_PROPOSAL,
-                {
-                    "note": note_id,
-                    "class_name": "Person",
-                    "payload": {
-                        "name": name,
-                        "aliases": [m for m in entry["mentions"] if m != name],
-                    },
-                    "confidence": entry["confidence"],
-                    "provenance": {"mentions": entry["provenance"]},
-                },
-            )[0]
+    for row in post_pass(extract_from_note(model, content, classes)):
+        created = db.query(
+            _CREATE,
+            {
+                "note": note_id,
+                "class_name": row["class_name"],
+                "payload": row["payload"],
+                "provenance": row["provenance"],
+                "confidence": float(row["confidence"]),
+                "extractor": model.name,
+            },
         )
-
-    for event in events:
-        proposals.append(
-            db.query(
-                _CREATE_PROPOSAL,
-                {
-                    "note": note_id,
-                    "class_name": "Event",
-                    "payload": {
-                        "name": event["name"],
-                        "location": event["location"],
-                        "time": event["time"],
-                        "people": [p["name"] for p in event["people"]],
-                    },
-                    "confidence": event["confidence"],
-                    "provenance": event["provenance"],
-                },
-            )[0]
-        )
-
+        proposals.append(created[0])
     return proposals
+
+
+def list_notes(db, limit=20):
+    return db.query(
+        f"SELECT id, created, content FROM Note ORDER BY created DESC LIMIT {int(limit)}"
+    ) or []
