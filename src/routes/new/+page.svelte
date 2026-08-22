@@ -2,6 +2,7 @@
     import { goto } from '$app/navigation';
     import { resolve } from '$app/paths';
     import ObjectForm from '$lib/components/ObjectForm.svelte';
+    import DistillPanel from '$lib/components/DistillPanel.svelte';
     import { classStore, getClass, type ClassView } from '$lib/db/classes.svelte';
     import { connection } from '$lib/db/connection.svelte';
     import { DelayedLoading } from '$lib/loading.svelte';
@@ -274,6 +275,7 @@
                                 {note.content}
                             </button>
                             <time>{note.created.toDate().toLocaleString()}</time>
+                            <DistillPanel note={note.id} />
                         {/if}
                     </li>
                 {/each}

@@ -96,7 +96,18 @@ class PioneerExtractor:
         except urllib.error.URLError as err:
             raise ExtractionError(f"Pioneer unreachable: {err.reason}") from err
 
-        return _attach_spans(_normalise_api_response(body), text)
+        # Keep only the classes we asked for: the response's `data` can also
+        # carry an `entities` block, which is not a user class.
+        wanted = set(structures)
+        normalised = {
+            name: objects
+            for name, objects in _normalise_api_response(body).items()
+            if name in wanted
+        }
+        # Pioneer's structured task returns text + confidence but NO offsets
+        # (only its entities task does), so _attach_spans recovers them by
+        # locating each value in the source text.
+        return _attach_spans(normalised, text)
 
 
 # --- shared -------------------------------------------------------------
@@ -123,17 +134,21 @@ def _to_api_structures(structures: dict) -> dict:
 
 
 def _normalise_api_response(body: dict) -> dict:
-    """Unwrap whatever envelope the API uses down to {structure: [objects]}.
+    """Unwrap the response envelope down to {ClassName: [objects]}.
 
-    The response shape is undocumented, so this tolerates the plausible
-    variants rather than assuming one.
+    Pioneer nests result -> data -> {ClassName: [...]}. The exact envelope is
+    undocumented and has been observed to nest more than one level, so known
+    wrapper keys are peeled repeatedly rather than exactly once.
     """
-    for key in ("result", "output", "data", "response"):
-        if isinstance(body.get(key), dict):
-            body = body[key]
-            break
-    if isinstance(body.get("structures"), dict):
-        body = body["structures"]
+    envelopes = ("result", "output", "response", "data", "structures")
+    changed = True
+    while changed and isinstance(body, dict):
+        changed = False
+        for key in envelopes:
+            if isinstance(body.get(key), dict):
+                body = body[key]
+                changed = True
+                break
     return {
         name: objects if isinstance(objects, list) else [objects]
         for name, objects in body.items()
