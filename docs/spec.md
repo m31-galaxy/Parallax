@@ -130,7 +130,12 @@ discussion task in [todo.md](todo.md)).
 
 ## 7. Clients & stack
 
-- **First client: a web app**, TypeScript + **Svelte**.
+- **First client: a web app**, TypeScript + **Svelte** — specifically
+  **SvelteKit in static/SPA mode** (`adapter-static` with an `index.html`
+  fallback, `ssr = false`): no app server exists, keeping the client "dumb".
+- **Tooling: Bun** as package manager and script runner (TS dev scripts run
+  directly under Bun); **Vite remains the build tool**. The app lives at the
+  **repository root** (monorepo only if/when separate packages appear).
 - The web app is **manual-connect only**: the user can connect to an *arbitrary*
   SurrealDB database (URL), which makes remote connections and collaboration
   effectively free. It does not spawn or manage database processes.
@@ -138,7 +143,7 @@ discussion task in [todo.md](todo.md)).
   bundles the "easy local database" functionality — automatically instantiating
   or connecting to a local SurrealDB server process. (Tracked in
   [todo.md](todo.md).)
-- Svelte flavour (SvelteKit vs plain Svelte + Vite) is open (§12).
+- Test tooling and formatting/linting tooling are not yet decided (§12).
 
 ## 8. Connection & auth
 
@@ -190,6 +195,10 @@ Details and status tracked in [todo.md](todo.md):
 | 2026-08-22 | Milestones: v0.1 = foundation (connect, classes, objects, notes); v0.2 = distillation (§9) |
 | 2026-08-22 | LLM provider / extraction model for distillation: deliberately deferred — to be discussed with the owner (todo.md) |
 | 2026-08-22 | docs/todo.md established as the single backlog file for tasks, deferred actions, and future features; rule recorded in AGENTS.md |
+| 2026-08-22 | Tooling: Bun as package manager + script runner; Vite remains the build tool (§7) |
+| 2026-08-22 | Web app is SvelteKit in static/SPA mode (adapter-static, index.html fallback, no SSR/app server) (§7) |
+| 2026-08-22 | Repo layout: app at repository root; monorepo only if/when separate packages appear (§7) |
+| 2026-08-22 | Test tooling: deliberately deferred until the first tests are written (todo.md) |
 
 ## 12. Open questions
 
@@ -202,7 +211,10 @@ Undecided design decisions (ask the owner before acting on any of these):
 - Field type set for v0.1 (which scalars; references between classes; enums;
   arrays/lists).
 - Do both the card-like and document-like note editors ship in v0.1?
-- Svelte flavour: SvelteKit vs plain Svelte + Vite.
+- Test tooling (Vitest vs `bun test` vs a split) — deferred until the first
+  tests are written.
+- Formatting/linting tooling (e.g. Prettier/ESLint) — not yet chosen; none is
+  configured.
 - Exact in-database representation of class metadata (§3.3's metadata table).
 - Shape of the distillation review UI (v0.2).
 

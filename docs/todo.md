@@ -10,6 +10,18 @@
 - [ ] **LLM provider / extraction model for distillation** — deliberately left
       unfilled (2026-08-22); the owner wants a dedicated discussion later.
       Record the outcome in spec.md (§6, §11, §12).
+- [ ] **Test tooling** (Vitest vs `bun test` vs split) — deferred (2026-08-22)
+      until the first tests are written.
+- [ ] **Formatting/linting tooling** (Prettier/ESLint or alternatives) — none
+      configured yet; decide before the codebase grows.
+
+## v0.1 — Foundation (current milestone)
+
+- [x] Scaffold: SvelteKit static/SPA app at repo root, Bun tooling, surrealdb SDK (2026-08-22)
+- [ ] Connect flow: connect dialog (URL, namespace/database, SurrealDB credentials) + named connection profiles stored locally
+- [ ] Class designer: create/edit classes (singular/plural names, fields), enforced via SCHEMAFULL tables
+- [ ] Object CRUD: schema-driven form UI for creating/editing objects
+- [ ] Note capture: built-in Note class + capture UI
 
 ## v0.2 — Distillation
 
