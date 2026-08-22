@@ -54,7 +54,7 @@ def claim_one(db):
     another worker won the race — skip and let the loop try the next one.
     """
     rows = db.query(
-        f"SELECT id FROM {REQUEST_TABLE} WHERE status = 'pending' "
+        f"SELECT id, requested FROM {REQUEST_TABLE} WHERE status = 'pending' "
         f"ORDER BY requested ASC LIMIT 1;"
     )
     if not rows:
