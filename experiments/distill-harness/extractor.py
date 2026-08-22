@@ -18,6 +18,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
@@ -25,6 +26,28 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 MODEL_ID = "fastino/gliner2-base-v1"
 PIONEER_ENDPOINT = "https://api.pioneer.ai/inference"
 DEFAULT_THRESHOLD = 0.5
+
+
+def load_dotenv():
+    """Load KEY=VALUE lines from the repo-root .env into os.environ, without a
+    dependency. Real environment variables win, so `setx`/`$env:` still override.
+    The file is gitignored; see .env.example for the format.
+    """
+    # extractor.py -> distill-harness -> experiments -> repo root
+    root = Path(__file__).resolve().parents[2]
+    env_file = root / ".env"
+    if not env_file.exists():
+        return
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip("\"'")
+        os.environ.setdefault(key, value)
+
+
+load_dotenv()
 
 
 class ExtractionError(RuntimeError):
