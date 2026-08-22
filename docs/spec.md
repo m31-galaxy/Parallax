@@ -70,9 +70,10 @@ their details remain open to revision (see §12).
    re-implements them as the authority.
 3. **All state in the database. (derived)** Because copying the DB must capture
    as much state as possible, class metadata that the DB engine doesn't natively
-   hold (singular/plural display names, field ordering/labels, etc.) is itself
-   stored in the database (e.g. a metadata table) rather than in client-side
-   config. Exact representation: open (§12).
+   hold (plural display names, field ordering, UI type hints) is itself stored
+   in the database, in the **`parallax_class` meta table** (§4). The real
+   schema remains the sole authority for structure; the meta table only
+   supplements it — a hint that disagrees with the schema is ignored.
 
 ## 4. Domain model
 
@@ -90,7 +91,31 @@ Terminology borrows deliberately from OOP:
   schema — not a freeform text note. Example: a `Person` class mirroring a
   contact/address book with `first_name`, `last_name`, `date_of_birth`,
   `address`, etc.
-- The set of supported field types for v0.1 is not yet decided (§12).
+- **Field types (v0.1): core scalars only** — more are planned in
+  [todo.md](todo.md):
+
+    | UI type     | SurrealDB type          |
+    | ----------- | ----------------------- |
+    | Text        | `string`                |
+    | Long text   | `string` (UI hint only) |
+    | Number      | `number`                |
+    | Boolean     | `bool`                  |
+    | Date & time | `datetime`              |
+
+    A field is either required (bare type) or optional (`option<T>`).
+
+- **Class ↔ database mapping:** a class is a `SCHEMAFULL` table whose name is
+  the singular name; fields are `DEFINE FIELD` definitions. Structure is read
+  back via `INFO`, never cached as authority. The **`parallax_class`** meta
+  table (one record per class, id = class name) stores `plural`, and an
+  ordered `fields` array of `{name, ui_type}` hints.
+- **Class designer scope (v0.1): create + extend.** Create classes, add fields,
+  edit the plural name. No field removal, class deletion, or renames yet —
+  destructive schema operations are backlog ([todo.md](todo.md)).
+- The naming convention is **enforced as validation in the class designer**
+  (PascalCase class names, snake_case field names, `id` reserved) — it governs
+  user-defined database schema, not TypeScript identifiers, so it is not a
+  lint rule.
 
 ## 5. Built-in classes
 
@@ -162,6 +187,9 @@ discussion task in [todo.md](todo.md)).
     - **Agent hooks:** `.claude/settings.json` defines a `PostToolUse` hook on
       `Write|Edit` that formats the touched file with Prettier, then runs ESLint
       on it and returns any errors to the agent to fix in the same turn.
+- **App shell:** a persistent left sidebar lists classes by plural name with a
+  "New class" action; the main area hosts the selected view. Object browsing
+  will hang off the same shell.
 - **Interim UI styling:** deliberately minimal, lean, and semantically
   organised hand-rolled CSS until a proper design pass. Keep markup clean and
   styles simple so a future "lick of paint" is as frictionless as possible;
@@ -258,6 +286,11 @@ Details and status tracked in [todo.md](todo.md):
 | 2026-08-22 | Dev database: SurrealDB installed via the official installer into `~/.surrealdb` (brew approved first but blocked by outdated CLT on the owner's machine)                                                                                                       |
 | 2026-08-22 | Terminology: **"database"** is the official term for the container a user's data lives in — SurrealDB's own concept name, no product aliasing. Supersedes "vault" everywhere in UI, code, and docs (§8)                                                         |
 | 2026-08-22 | Interim UI: keep styling minimal, lean, and organised so a later design pass is frictionless; final visual design remains open (§7, §12)                                                                                                                        |
+| 2026-08-22 | Field types v0.1: core scalars only (text, long text, number, boolean, datetime); references, select/enum, and lists deferred to todo.md (§4)                                                                                                                   |
+| 2026-08-22 | Class metadata: the real schema (DEFINE/INFO) is the sole structural authority; `parallax_class` meta table stores plural names, field order, and UI type hints (§3, §4)                                                                                        |
+| 2026-08-22 | Class designer scope v0.1: create + extend (add fields, edit plural); destructive schema ops deferred (§4)                                                                                                                                                      |
+| 2026-08-22 | Naming convention enforced as class-designer validation, deliberately not a lint rule (§4)                                                                                                                                                                      |
+| 2026-08-22 | App shell: persistent sidebar listing classes by plural name; main area hosts the selected view (§7)                                                                                                                                                            |
 
 ## 12. Open questions
 
@@ -267,12 +300,9 @@ Undecided design decisions (ask the owner before acting on any of these):
   discussion task in [todo.md](todo.md).
 - Long-term distillation trigger/commit model (current manual + review flow is
   temporary; auto-trigger, inbox, auto-commit variants to be experimented with).
-- Field type set for v0.1 (which scalars; references between classes; enums;
-  arrays/lists).
 - Do both the card-like and document-like note editors ship in v0.1?
 - Test tooling (Vitest vs `bun test` vs a split) — deferred until the first
   tests are written.
-- Exact in-database representation of class metadata (§3.3's metadata table).
 - Shape of the distillation review UI (v0.2).
 - Visual design / styling approach (design system, component library, theming)
   — the connect flow ships with minimal hand-rolled CSS as a placeholder.
