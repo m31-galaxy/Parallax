@@ -1,0 +1,358 @@
+{
+  "model": "fastino/gliner2-base-v1",
+  "fine_tuned": false,
+  "confidence_floor": 0.6,
+  "distillation_ms": 2108,
+  "note": {
+    "id": "Note:vxsy4lsc0q9mmxhfvwkc",
+    "chars": 842,
+    "content": "Saturday 22 August\n\nSlept in until about 9, then walked over to Café Lumen on Bridge Street for breakfast with Anna. She's stressed about her thesis defence on Thursday but seems to have it under control. Took the 11 bus to uni and spent the late morning in the Robinson Library finishing the stats problem set with Dev — he still owes me a coffee from last week.\n\nAround 2 we all met up at Victoria Park for Mei's birthday picnic. Tom brought his dog, Biscuit, who stole half a sandwich. Mei's parents flew in from Singapore for it, which was a nice surprise. Left at 5 to get to the climbing gym on Eastway with Dev; managed my first V4.\n\nDinner at home with Mum, she made laksa. Watched an episode of something forgettable and crashed by 11. Need to remember: Anna's defence Thursday 2pm, Dev's coffee, and book the dentist for next week.\n"
+  },
+  "proposals": [
+    {
+      "id": "Proposal:y28cqqpuwvxzar09rbou",
+      "class_name": "Person",
+      "confidence": 0.9631,
+      "payload": {
+        "aliases": [],
+        "name": "Anna"
+      },
+      "provenance": {
+        "mentions": [
+          {
+            "end": 115,
+            "start": 111,
+            "quotes": "Anna"
+          },
+          {
+            "end": 115,
+            "start": 111,
+            "quotes": "Anna"
+          }
+        ]
+      },
+      "status": "pending"
+    },
+    {
+      "id": "Proposal:dvc1giquxi9syorwt6qp",
+      "class_name": "Person",
+      "confidence": 0.9426,
+      "payload": {
+        "aliases": [],
+        "name": "Dev"
+      },
+      "provenance": {
+        "mentions": [
+          {
+            "end": 319,
+            "start": 316,
+            "quotes": "Dev"
+          }
+        ]
+      },
+      "status": "pending"
+    },
+    {
+      "id": "Proposal:zypc6zsegavh4q3f5dvk",
+      "class_name": "Person",
+      "confidence": 0.9318,
+      "payload": {
+        "aliases": [],
+        "name": "Tom"
+      },
+      "provenance": {
+        "mentions": [
+          {
+            "end": 435,
+            "start": 432,
+            "quotes": "Tom"
+          }
+        ]
+      },
+      "status": "pending"
+    },
+    {
+      "id": "Proposal:1knzcouj4buagx4neo0w",
+      "class_name": "Person",
+      "confidence": 0.8575,
+      "payload": {
+        "aliases": [],
+        "name": "Mei's parents"
+      },
+      "provenance": {
+        "mentions": [
+          {
+            "end": 502,
+            "start": 489,
+            "quotes": "Mei's parents"
+          }
+        ]
+      },
+      "status": "pending"
+    },
+    {
+      "id": "Proposal:fan4el9kmi8m4t6kih8e",
+      "class_name": "Person",
+      "confidence": 0.9918,
+      "payload": {
+        "aliases": [],
+        "name": "Mum"
+      },
+      "provenance": {
+        "mentions": [
+          {
+            "end": 664,
+            "start": 661,
+            "quotes": "Mum"
+          }
+        ]
+      },
+      "status": "pending"
+    },
+    {
+      "id": "Proposal:7x7a10dr8smp900r4yw6",
+      "class_name": "Event",
+      "confidence": 0.9305,
+      "payload": {
+        "location": "Café Lumen on Bridge Street",
+        "name": "breakfast",
+        "people": [
+          "Anna"
+        ],
+        "time": "9"
+      },
+      "provenance": {
+        "location": {
+          "end": 91,
+          "start": 64,
+          "quotes": "Café Lumen on Bridge Street"
+        },
+        "name": {
+          "end": 105,
+          "start": 96,
+          "quotes": "breakfast"
+        },
+        "time": {
+          "end": 42,
+          "start": 41,
+          "quotes": "9"
+        }
+      },
+      "status": "pending"
+    },
+    {
+      "id": "Proposal:q3auc4cg0z930wugthw6",
+      "class_name": "Event",
+      "confidence": 0.799,
+      "payload": {
+        "name": "thesis defence",
+        "people": [
+          "Anna"
+        ]
+      },
+      "provenance": {
+        "location": {
+          "quotes": null
+        },
+        "name": {
+          "end": 156,
+          "start": 142,
+          "quotes": "thesis defence"
+        },
+        "time": {
+          "quotes": null
+        }
+      },
+      "status": "pending"
+    },
+    {
+      "id": "Proposal:aw93i5gmgaq3sbirsokz",
+      "class_name": "Event",
+      "confidence": 0.6848,
+      "payload": {
+        "location": "Robinson Library",
+        "name": "stats problem set",
+        "people": [
+          "Dev"
+        ],
+        "time": "late morning"
+      },
+      "provenance": {
+        "location": {
+          "end": 278,
+          "start": 262,
+          "quotes": "Robinson Library"
+        },
+        "name": {
+          "end": 310,
+          "start": 293,
+          "quotes": "stats problem set"
+        },
+        "time": {
+          "end": 254,
+          "start": 242,
+          "quotes": "late morning"
+        }
+      },
+      "status": "pending"
+    },
+    {
+      "id": "Proposal:5n5kslrft5a5xd4jfji3",
+      "class_name": "Event",
+      "confidence": 0.9157,
+      "payload": {
+        "location": "Victoria Park",
+        "name": "Mei's birthday picnic",
+        "people": [
+          "Tom",
+          "Mei's parents"
+        ],
+        "time": "2"
+      },
+      "provenance": {
+        "location": {
+          "end": 404,
+          "start": 391,
+          "quotes": "Victoria Park"
+        },
+        "name": {
+          "end": 430,
+          "start": 409,
+          "quotes": "Mei's birthday picnic"
+        },
+        "time": {
+          "end": 373,
+          "start": 372,
+          "quotes": "2"
+        }
+      },
+      "status": "pending"
+    },
+    {
+      "id": "Proposal:3uh99vs1ud44a0qo8yfq",
+      "class_name": "Event",
+      "confidence": 0.9534,
+      "payload": {
+        "location": "home",
+        "name": "Dinner",
+        "people": [
+          "Mum"
+        ]
+      },
+      "provenance": {
+        "location": {
+          "end": 655,
+          "start": 651,
+          "quotes": "home"
+        },
+        "name": {
+          "end": 647,
+          "start": 641,
+          "quotes": "Dinner"
+        },
+        "time": {
+          "quotes": null
+        }
+      },
+      "status": "pending"
+    }
+  ],
+  "committed": {
+    "Person": [
+      {
+        "id": "Person:9sj323q0515ocwf7y5w1",
+        "name": "Anna",
+        "aliases": []
+      },
+      {
+        "id": "Person:nqm9c9h9eiumqlfahfvg",
+        "name": "Dev",
+        "aliases": []
+      },
+      {
+        "id": "Person:a5zw2h6w6fzcwwblp0i7",
+        "name": "Mei's parents",
+        "aliases": []
+      },
+      {
+        "id": "Person:0y7awdt3dpq82n7n5wh4",
+        "name": "Mum",
+        "aliases": []
+      },
+      {
+        "id": "Person:4g5d25yluh9zz1391vks",
+        "name": "Tom",
+        "aliases": []
+      }
+    ],
+    "Event": [
+      {
+        "id": "Event:kbc3ff2klnrwg2oyfyp1",
+        "name": "Dinner",
+        "location": "home",
+        "time": null,
+        "people": [
+          "Person:0y7awdt3dpq82n7n5wh4"
+        ],
+        "people_names": [
+          "Mum"
+        ],
+        "source": "Note:vxsy4lsc0q9mmxhfvwkc"
+      },
+      {
+        "id": "Event:ey7hzrwoi8k880y6qpkm",
+        "name": "Mei's birthday picnic",
+        "location": "Victoria Park",
+        "time": "2",
+        "people": [
+          "Person:4g5d25yluh9zz1391vks",
+          "Person:a5zw2h6w6fzcwwblp0i7"
+        ],
+        "people_names": [
+          "Tom",
+          "Mei's parents"
+        ],
+        "source": "Note:vxsy4lsc0q9mmxhfvwkc"
+      },
+      {
+        "id": "Event:11zoy6ummf0ebocgq7t4",
+        "name": "breakfast",
+        "location": "Café Lumen on Bridge Street",
+        "time": "9",
+        "people": [
+          "Person:9sj323q0515ocwf7y5w1"
+        ],
+        "people_names": [
+          "Anna"
+        ],
+        "source": "Note:vxsy4lsc0q9mmxhfvwkc"
+      },
+      {
+        "id": "Event:kv8yxsehsc25ygt93bd3",
+        "name": "stats problem set",
+        "location": "Robinson Library",
+        "time": "late morning",
+        "people": [
+          "Person:nqm9c9h9eiumqlfahfvg"
+        ],
+        "people_names": [
+          "Dev"
+        ],
+        "source": "Note:vxsy4lsc0q9mmxhfvwkc"
+      },
+      {
+        "id": "Event:5mcv7et370wlwzbq2ya4",
+        "name": "thesis defence",
+        "location": null,
+        "time": null,
+        "people": [
+          "Person:9sj323q0515ocwf7y5w1"
+        ],
+        "people_names": [
+          "Anna"
+        ],
+        "source": "Note:vxsy4lsc0q9mmxhfvwkc"
+      }
+    ]
+  }
+}
