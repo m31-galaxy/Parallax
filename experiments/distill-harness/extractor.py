@@ -24,10 +24,14 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 MODEL_ID = "fastino/gliner2-base-v1"
-# Larger encoder (340M vs 205M) - better extraction for the same request shape.
-# The default when running against Pioneer, where model size costs no local RAM.
-PIONEER_MODEL_ID = "fastino/gliner2-large-v1"
+# Both backends default to base. Larger encoders (gliner2-large-v1) are tuned
+# for precision, so they extract FEWER things at the same threshold - worse
+# recall on short informal notes. Switch per run with PARALLAX_MODEL if wanted.
+PIONEER_MODEL_ID = MODEL_ID
 PIONEER_ENDPOINT = "https://api.pioneer.ai/inference"
+
+# Lower = more picked up (more recall, more noise to review). The single biggest
+# lever on "how much it extracts". Tune with PARALLAX_THRESHOLD in .env.
 DEFAULT_THRESHOLD = 0.5
 
 
@@ -51,6 +55,12 @@ def load_dotenv():
 
 
 load_dotenv()
+
+# Read after .env is loaded so PARALLAX_THRESHOLD there takes effect.
+try:
+    DEFAULT_THRESHOLD = float(os.environ.get("PARALLAX_THRESHOLD", DEFAULT_THRESHOLD))
+except ValueError:
+    pass
 
 
 class ExtractionError(RuntimeError):
