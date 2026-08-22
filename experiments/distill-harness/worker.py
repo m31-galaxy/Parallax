@@ -33,7 +33,9 @@ import schema_builder  # noqa: E402
 URL = "ws://127.0.0.1:8000/rpc"
 NS = "parallax"
 REQUEST_TABLE = "parallax_distill_request"
-POLL_SECONDS = 1.0
+# Kept short so a request is picked up almost immediately; the loop is a cheap
+# SELECT, so tightening it costs little while removing most of the felt delay.
+POLL_SECONDS = 0.25
 
 
 def connect(database):

@@ -37,8 +37,8 @@
     let editingId = $state<string | null>(null);
 
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
-    const POLL_MS = 1000;
-    const POLL_LIMIT = 120; // ~2 min before giving up on a silent worker
+    const POLL_MS = 350; // tight, so the result shows almost as soon as it lands
+    const POLL_LIMIT = 340; // ~2 min before giving up on a silent worker
 
     function toMessage(err: unknown): string {
         return err instanceof Error ? err.message : String(err);
