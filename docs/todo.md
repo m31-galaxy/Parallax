@@ -26,7 +26,8 @@
 ## v0.1 — Foundation (current milestone)
 
 - [x] Scaffold: SvelteKit static/SPA app at repo root, Bun tooling, surrealdb SDK (2026-08-22)
-- [ ] Connect flow: connect dialog (URL, namespace/database, SurrealDB credentials) + named connection profiles stored locally
+- [x] Connect flow: two-step connect (server auth → database pick/create), all auth
+      levels + anonymous, localStorage profiles with opt-in remember, gate route + auto-reconnect (2026-08-22; spec §8)
 - [ ] Class designer: create/edit classes (singular/plural names, fields), enforced via SCHEMAFULL tables
 - [ ] Object CRUD: schema-driven form UI for creating/editing objects
 - [ ] Note capture: built-in Note class + capture UI
@@ -40,6 +41,11 @@
       the spec decision.
 
 ## Future features
+
+- [ ] **Record-access authentication** (SurrealDB access methods) — end-user
+      style auth, deferred from the v0.1 connect flow (spec §8).
+- [ ] **In-app user management** — UI for `DEFINE USER ... ON DATABASE ROLES ...`
+      so database owners can invite collaborators without the CLI.
 
 - [ ] **Tauri desktop app** based on the web app, bundling automatic local
       SurrealDB instantiation/connection (spec §7).

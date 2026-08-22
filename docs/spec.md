@@ -31,7 +31,8 @@ from a new perspective."_
 The core for now is **SurrealDB**. Users define schemas ("classes") that translate
 directly to structure in the database, create structured "objects" through
 form-like UIs, and capture freeform notes that can be **distilled** by an LLM into
-structured objects matching those schemas.
+structured objects matching those schemas. A user's data lives in **databases**
+inside a namespace — playing the role vaults play in Obsidian (§8).
 
 ## 2. Original statement of intent (verbatim)
 
@@ -161,16 +162,45 @@ discussion task in [todo.md](todo.md)).
     - **Agent hooks:** `.claude/settings.json` defines a `PostToolUse` hook on
       `Write|Edit` that formats the touched file with Prettier, then runs ESLint
       on it and returns any errors to the agent to fix in the same turn.
+- **Interim UI styling:** deliberately minimal, lean, and semantically
+  organised hand-rolled CSS until a proper design pass. Keep markup clean and
+  styles simple so a future "lick of paint" is as frictionless as possible;
+  the final visual design remains open (§12).
 - Test tooling is not yet decided (§12).
 
-## 8. Connection & auth
+## 8. Connection, auth & databases
 
-- **Pass through SurrealDB's native auth.** The connect dialog takes the server
-  URL, namespace/database, and SurrealDB credentials; the app stores named
-  **connection profiles** locally. There is **no Parallax-level account system**.
+- **Terminology: "database" is the official term** for the container a user's
+  data lives in — Parallax uses SurrealDB's own concept name directly, with no
+  product aliasing. ("Vault" was briefly used and is superseded; see §11.)
+- **Database model.** A user's **databases live inside the profile's
+  namespace**. The namespace defaults to **`parallax`** and is configurable for
+  advanced users (an "Advanced" field in the connect form). One server can host
+  other services in other namespaces, and multiple databases in the Parallax
+  namespace (e.g. a personal journal and a shared work database) — these play
+  the role vaults play in Obsidian.
+- **Pass through SurrealDB's native auth.** The connect form has an explicit
+  auth-level selector covering **all three system-user levels — root, namespace,
+  database — plus anonymous** (unauthenticated servers). The selected level maps
+  1:1 to the SDK credential shape; the client never guesses. **Record access is
+  deferred** (end-user auth; backlog). There is **no Parallax-level account
+  system**.
+- **Two-step connect flow:** (1) authenticate to the server; (2) pick or create
+  a database in the namespace. Database-level credentials are bound to their
+  database and skip step 2. Privileges are surfaced, not enforced: creating a
+  namespace needs root-level EDITOR/OWNER, creating a database needs
+  namespace-level or above; the UI offers the action and shows the server's
+  verbatim error.
+- **Connection profiles** are stored in localStorage. Passwords are stored only
+  with per-profile opt-in ("remember password", plaintext, warned in the UI);
+  profiles without a stored password prompt inline on connect.
+- **Gate route + auto-reconnect:** everything outside `/connect` requires a live
+  session with an open database; on launch the app makes one silent reconnect
+  attempt to the last-used profile and database when a password is available
+  (remembered or anonymous).
 - Collaboration model: multiple people connecting to the same database with
   their own database users — a consequence of arbitrary connections plus
-  DB-native auth.
+  DB-native auth (e.g. `DEFINE USER partner ON DATABASE ROLES EDITOR`).
 
 ## 9. Milestones
 
@@ -195,32 +225,39 @@ Details and status tracked in [todo.md](todo.md):
 
 ## 11. Decision log
 
-| Date       | Decision                                                                                                                                                                              |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-22 | Project name "Parallax", tagline "Note-taking from a new perspective" (README, commit `a267ee6`)                                                                                      |
-| 2026-08-22 | docs/spec.md is the single source of truth; agent files must point to it                                                                                                              |
-| 2026-08-22 | Blank-slate policy: no design decision is assumed; every decision must be asked of the owner and recorded here before it is acted on                                                  |
-| 2026-08-22 | Product definition: database-centred note-taking/PKM platform; SurrealDB as the core (§1, §2 verbatim)                                                                                |
-| 2026-08-22 | Domain model: classes (tables) with singular+plural names and custom fields; objects as schema-conforming instances; manual creation via form-style UI (§4)                           |
-| 2026-08-22 | Naming convention: `PascalCase` classes, `snake_case` fields (§4)                                                                                                                     |
-| 2026-08-22 | Principle: "smart database, dumb client"; schemas verified/enforced at the database level (§3)                                                                                        |
-| 2026-08-22 | Built-in `Note` class: `created` datetime + `content` long text; card-like and document-like capture UIs (§5)                                                                         |
-| 2026-08-22 | Distilled note-taking is the flagship feature; v1 flow = manual trigger + review before commit, explicitly temporary/experimental (§6)                                                |
-| 2026-08-22 | First client: web app, manual-connect only, connecting to arbitrary SurrealDB URLs (§7)                                                                                               |
-| 2026-08-22 | Frontend stack: TypeScript + Svelte (§7)                                                                                                                                              |
-| 2026-08-22 | Later client: Tauri desktop app based on the web app, bundling automatic local-DB instantiation (§7)                                                                                  |
-| 2026-08-22 | Auth: pass through SurrealDB native auth; locally stored connection profiles; no Parallax account layer (§8)                                                                          |
-| 2026-08-22 | Milestones: v0.1 = foundation (connect, classes, objects, notes); v0.2 = distillation (§9)                                                                                            |
-| 2026-08-22 | LLM provider / extraction model for distillation: deliberately deferred — to be discussed with the owner (todo.md)                                                                    |
-| 2026-08-22 | docs/todo.md established as the single backlog file for tasks, deferred actions, and future features; rule recorded in AGENTS.md                                                      |
-| 2026-08-22 | Tooling: Bun as package manager + script runner; Vite remains the build tool (§7)                                                                                                     |
-| 2026-08-22 | Web app is SvelteKit in static/SPA mode (adapter-static, index.html fallback, no SSR/app server) (§7)                                                                                 |
-| 2026-08-22 | Repo layout: app at repository root; monorepo only if/when separate packages appear (§7)                                                                                              |
-| 2026-08-22 | Test tooling: deliberately deferred until the first tests are written (todo.md)                                                                                                       |
-| 2026-08-22 | Formatting: Prettier + `prettier-plugin-svelte`; 4-space indents (2-space for JSON), single quotes, no trailing commas, 100-col print width; `format` / `format:check` scripts (§7)   |
-| 2026-08-22 | Linting: ESLint flat config + typescript-eslint `recommendedTypeChecked` (type-aware) + eslint-plugin-svelte + eslint-config-prettier; `lint` / `lint:fix` scripts (§7)               |
-| 2026-08-22 | Automated checks: committed `.githooks/` via `core.hooksPath` (installed by `prepare`); `pre-commit` runs Prettier + ESLint + svelte-check, check-only, no auto-fix or restaging (§7) |
-| 2026-08-22 | Agent hooks: `.claude/settings.json` `PostToolUse` on `Write                                                                                                                          | Edit` — Prettier writes the touched file, ESLint errors are fed back to the agent (§7) |
+| Date       | Decision                                                                                                                                                                                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-22 | Project name "Parallax", tagline "Note-taking from a new perspective" (README, commit `a267ee6`)                                                                                                                                                                |
+| 2026-08-22 | docs/spec.md is the single source of truth; agent files must point to it                                                                                                                                                                                        |
+| 2026-08-22 | Blank-slate policy: no design decision is assumed; every decision must be asked of the owner and recorded here before it is acted on                                                                                                                            |
+| 2026-08-22 | Product definition: database-centred note-taking/PKM platform; SurrealDB as the core (§1, §2 verbatim)                                                                                                                                                          |
+| 2026-08-22 | Domain model: classes (tables) with singular+plural names and custom fields; objects as schema-conforming instances; manual creation via form-style UI (§4)                                                                                                     |
+| 2026-08-22 | Naming convention: `PascalCase` classes, `snake_case` fields (§4)                                                                                                                                                                                               |
+| 2026-08-22 | Principle: "smart database, dumb client"; schemas verified/enforced at the database level (§3)                                                                                                                                                                  |
+| 2026-08-22 | Built-in `Note` class: `created` datetime + `content` long text; card-like and document-like capture UIs (§5)                                                                                                                                                   |
+| 2026-08-22 | Distilled note-taking is the flagship feature; v1 flow = manual trigger + review before commit, explicitly temporary/experimental (§6)                                                                                                                          |
+| 2026-08-22 | First client: web app, manual-connect only, connecting to arbitrary SurrealDB URLs (§7)                                                                                                                                                                         |
+| 2026-08-22 | Frontend stack: TypeScript + Svelte (§7)                                                                                                                                                                                                                        |
+| 2026-08-22 | Later client: Tauri desktop app based on the web app, bundling automatic local-DB instantiation (§7)                                                                                                                                                            |
+| 2026-08-22 | Auth: pass through SurrealDB native auth; locally stored connection profiles; no Parallax account layer (§8)                                                                                                                                                    |
+| 2026-08-22 | Milestones: v0.1 = foundation (connect, classes, objects, notes); v0.2 = distillation (§9)                                                                                                                                                                      |
+| 2026-08-22 | LLM provider / extraction model for distillation: deliberately deferred — to be discussed with the owner (todo.md)                                                                                                                                              |
+| 2026-08-22 | docs/todo.md established as the single backlog file for tasks, deferred actions, and future features; rule recorded in AGENTS.md                                                                                                                                |
+| 2026-08-22 | Tooling: Bun as package manager + script runner; Vite remains the build tool (§7)                                                                                                                                                                               |
+| 2026-08-22 | Web app is SvelteKit in static/SPA mode (adapter-static, index.html fallback, no SSR/app server) (§7)                                                                                                                                                           |
+| 2026-08-22 | Repo layout: app at repository root; monorepo only if/when separate packages appear (§7)                                                                                                                                                                        |
+| 2026-08-22 | Test tooling: deliberately deferred until the first tests are written (todo.md)                                                                                                                                                                                 |
+| 2026-08-22 | Formatting: Prettier + `prettier-plugin-svelte`; 4-space indents (2-space for JSON), single quotes, no trailing commas, 100-col print width; `format` / `format:check` scripts (§7)                                                                             |
+| 2026-08-22 | Linting: ESLint flat config + typescript-eslint `recommendedTypeChecked` (type-aware) + eslint-plugin-svelte + eslint-config-prettier; `lint` / `lint:fix` scripts (§7)                                                                                         |
+| 2026-08-22 | Automated checks: committed `.githooks/` via `core.hooksPath` (installed by `prepare`); `pre-commit` runs Prettier + ESLint + svelte-check, check-only, no auto-fix or restaging (§7)                                                                           |
+| 2026-08-22 | Agent hooks: `.claude/settings.json` `PostToolUse` on `Write                                                                                                                                                                                                    | Edit` — Prettier writes the touched file, ESLint errors are fed back to the agent (§7) |
+| 2026-08-22 | **Superseded** (same day, by the terminology decision below): "vault" as the product term for a user's database. The underlying model stands — databases inside a default `parallax` namespace, configurable under Advanced, playing Obsidian's vault role (§8) |
+| 2026-08-22 | Connect form supports all system-user levels (root/namespace/database) plus anonymous via an explicit level selector; record access deferred to backlog (§8)                                                                                                    |
+| 2026-08-22 | Connection profiles in localStorage with per-profile opt-in "remember password" (plaintext, warned); unremembered profiles prompt inline (§8)                                                                                                                   |
+| 2026-08-22 | Connect UX: gate route `/connect` + one-shot silent auto-reconnect to the last-used profile/database when a password is available (§8)                                                                                                                          |
+| 2026-08-22 | Dev database: SurrealDB installed via the official installer into `~/.surrealdb` (brew approved first but blocked by outdated CLT on the owner's machine)                                                                                                       |
+| 2026-08-22 | Terminology: **"database"** is the official term for the container a user's data lives in — SurrealDB's own concept name, no product aliasing. Supersedes "vault" everywhere in UI, code, and docs (§8)                                                         |
+| 2026-08-22 | Interim UI: keep styling minimal, lean, and organised so a later design pass is frictionless; final visual design remains open (§7, §12)                                                                                                                        |
 
 ## 12. Open questions
 
@@ -237,6 +274,8 @@ Undecided design decisions (ask the owner before acting on any of these):
   tests are written.
 - Exact in-database representation of class metadata (§3.3's metadata table).
 - Shape of the distillation review UI (v0.2).
+- Visual design / styling approach (design system, component library, theming)
+  — the connect flow ships with minimal hand-rolled CSS as a placeholder.
 
 ## 13. Maintaining this document
 
