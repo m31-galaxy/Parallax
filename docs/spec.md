@@ -140,7 +140,23 @@ Notes are captured through either:
 - a **card-like** UI (zettelkasten / Google Keep style), or
 - a **document-like** UI (Obsidian style).
 
-Whether both editors ship in v0.1 is open (§12).
+**v0.1 ships the card-like UI only** (quick-capture box + newest-first card
+grid with in-place editing); the document-like editor is backlog
+([todo.md](todo.md)).
+
+- **Placement:** a pinned **"+ New object"** entry at the top of the sidebar
+  opens the creation hub (`/new`): an object-type dropdown defaults to
+  **Note** (showing the quick-capture box); selecting any other class swaps in
+  that class's schema-driven form. The notes card grid is always shown
+  underneath as a shortcut. Note remains an ordinary class — registered in
+  `parallax_class` (plural "Notes"), listed under Classes with the standard
+  Objects/Schema views. Capture is a specialised lens over a normal class.
+  (Supersedes the earlier dedicated-"Notes"-section placement, same day.)
+- **Provisioning:** automatic on first use and idempotent — opening Notes runs
+  `DEFINE ... IF NOT EXISTS` DDL and `INSERT IGNORE`s the meta record, so
+  user customisations are never clobbered. **(derived)** `created` is enforced
+  by the database itself: `DEFAULT time::now() READONLY` — the client never
+  supplies or edits it (note updates are merges of `content` only).
 
 ## 6. Distilled note-taking
 
@@ -311,6 +327,9 @@ Details and status tracked in [todo.md](todo.md):
 | 2026-08-22 | Class page is objects-first with the designer on a secondary "Schema" tab (§4)                                                                                                                                                                                  |
 | 2026-08-22 | Object CRUD v0.1: schema-driven forms with typed widgets; delete behind a confirm; empty optional inputs = unset; unsupported field types read-only (§4)                                                                                                        |
 | 2026-08-22 | Perceived performance: stale-while-loading navigation with a 50 ms delayed loading indicator; hover code-preloading kept (scaffold default); custom data prefetch-on-hover not pursued for now (§7)                                                             |
+| 2026-08-22 | Note capture v0.1: card-like UI only (quick capture + card grid, in-place edit); document-like editor deferred to todo.md (§5)                                                                                                                                  |
+| 2026-08-22 | Notes placement: pinned sidebar "Notes" section; Note is also an ordinary class with the standard Objects/Schema views (§5)                                                                                                                                     |
+| 2026-08-22 | Note provisioning: automatic on first use, idempotent (DEFINE IF NOT EXISTS + INSERT IGNORE meta); `created` enforced by the DB via DEFAULT time::now() READONLY (§5)                                                                                           |
 
 ## 12. Open questions
 
@@ -320,7 +339,6 @@ Undecided design decisions (ask the owner before acting on any of these):
   discussion task in [todo.md](todo.md).
 - Long-term distillation trigger/commit model (current manual + review flow is
   temporary; auto-trigger, inbox, auto-commit variants to be experimented with).
-- Do both the card-like and document-like note editors ship in v0.1?
 - Test tooling (Vitest vs `bun test` vs a split) — deferred until the first
   tests are written.
 - Shape of the distillation review UI (v0.2).

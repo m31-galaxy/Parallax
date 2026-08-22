@@ -78,10 +78,10 @@ interface MetaRow {
     fields: MetaFieldHint[];
 }
 
-const META_TABLE = 'parallax_class';
+export const META_TABLE = 'parallax_class';
 
 /** Idempotent meta-table schema, run before any meta write. */
-const ENSURE_META = `
+export const ENSURE_META = `
 DEFINE TABLE IF NOT EXISTS ${META_TABLE} SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS table_name ON ${META_TABLE} TYPE string;
 DEFINE FIELD IF NOT EXISTS plural ON ${META_TABLE} TYPE string;

@@ -39,7 +39,9 @@
       sidebar app shell, naming validation (2026-08-22; spec §4)
 - [x] Object CRUD: objects-first class page (list/create/edit/delete) with
       schema-driven forms; designer moved to a Schema tab (2026-08-22; spec §4)
-- [ ] Note capture: built-in Note class + capture UI
+- [x] Note capture: card-style capture UI (quick capture, card grid, in-place
+      edit) over an auto-provisioned built-in Note class with DB-enforced
+      `created` (2026-08-22; spec §5) — **v0.1 Foundation complete**
 
 ## v0.2 — Distillation
 
@@ -51,6 +53,12 @@
 
 ## Known issues / polish
 
+- [ ] Editing a Note through the generic object form can trip the readonly
+      `created` field: `datetime-local` truncates seconds, so the resubmitted
+      value differs and the database rejects it (2026-08-22). Related to the
+      datetime-precision item below; consider omitting readonly fields from
+      object forms.
+
 - [ ] Datetime fields lose sub-minute precision on edit: the `datetime-local`
       input is minute-granular, so re-saving a record truncates seconds
       (observed 2026-08-22). Decide a precision story (seconds step, or
@@ -58,6 +66,8 @@
 
 ## Future features
 
+- [ ] **Document-like note editor** (Obsidian-style full-page editing) —
+      deferred from v0.1 note capture (spec §5).
 - [ ] **More field types** (deferred from v0.1 class designer, spec §4):
       references (`record<Class>`), select/enum (string + `ASSERT ... INSIDE`),
       lists (`array<T>`).

@@ -69,7 +69,14 @@
     <p class="boot">Connecting…</p>
 {:else if inWorkspace}
     <div class="workspace">
-        <nav class="sidebar" aria-label="Classes">
+        <nav class="sidebar" aria-label="Workspace">
+            <a
+                class="notes-link"
+                href={resolve('/new')}
+                aria-current={page.url.pathname === resolve('/new')}
+            >
+                + New object
+            </a>
             <h2>Classes</h2>
             {#if classStore.error !== null}
                 <p class="side-error">{classStore.error}</p>
@@ -149,6 +156,11 @@
         padding: 1rem;
         border-right: 1px solid #ddd;
         background: #fff;
+    }
+
+    .notes-link {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
     }
 
     .sidebar h2 {
