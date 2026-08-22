@@ -48,19 +48,28 @@ def connect(database):
 def claim_one(db):
     """Atomically take the oldest pending request, if any.
 
-    UPDATE ... WHERE status = 'pending' with a per-row guard is enough for a
-    single worker; two workers would need a stricter claim, which is out of
-    scope here.
+    Compare-and-swap so two workers can never process the same request (which
+    would double every proposal): flip status to 'running' only WHERE it is
+    still 'pending', and RETURN BEFORE. If the before-state comes back empty,
+    another worker won the race — skip and let the loop try the next one.
     """
     rows = db.query(
-        f"SELECT * FROM {REQUEST_TABLE} WHERE status = 'pending' "
+        f"SELECT id FROM {REQUEST_TABLE} WHERE status = 'pending' "
         f"ORDER BY requested ASC LIMIT 1;"
     )
     if not rows:
         return None
-    request = rows[0]
-    db.query("UPDATE $id SET status = 'running';", {"id": request["id"]})
-    return request
+    request_id = rows[0]["id"]
+
+    claimed = db.query(
+        "UPDATE $id SET status = 'running' WHERE status = 'pending' RETURN BEFORE;",
+        {"id": request_id},
+    )
+    if not claimed:
+        return None  # lost the race; caller retries
+
+    got = db.query("SELECT * FROM $id;", {"id": request_id})
+    return got[0] if got else None
 
 
 def process(db, request, model):
