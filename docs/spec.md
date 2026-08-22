@@ -55,7 +55,7 @@ Recorded 2026-08-22, quoted exactly to preserve the owner's original intent:
 The sections below expand this into a fuller picture. Where an expansion is a
 _derived consequence_ rather than the owner's literal words, it is marked
 **(derived)**; derived items were accepted via plan approval on 2026-08-22, but
-their details remain open to revision (see §12).
+their details remain open to revision (see §13).
 
 ## 3. Architecture principles
 
@@ -181,7 +181,7 @@ anything is committed to the database. This is an explicitly _temporary,
 experimental_ choice — alternative trigger/commit models will be revisited later
 (see [todo.md](todo.md)).
 
-The LLM provider / extraction model is **deliberately undecided** (§12;
+The LLM provider / extraction model is **deliberately undecided** (§13;
 discussion task in [todo.md](todo.md)).
 
 ## 7. Clients & stack
@@ -231,14 +231,14 @@ discussion task in [todo.md](todo.md)).
 - **Interim UI styling:** deliberately minimal, lean, and semantically
   organised hand-rolled CSS until a proper design pass. Keep markup clean and
   styles simple so a future "lick of paint" is as frictionless as possible;
-  the final visual design remains open (§12).
-- Test tooling is not yet decided (§12).
+  the final visual design remains open (§13).
+- Test tooling is not yet decided (§13).
 
 ## 8. Connection, auth & databases
 
 - **Terminology: "database" is the official term** for the container a user's
   data lives in — Parallax uses SurrealDB's own concept name directly, with no
-  product aliasing. ("Vault" was briefly used and is superseded; see §11.)
+  product aliasing. ("Vault" was briefly used and is superseded; see §12.)
 - **Database model.** A user's **databases live inside the profile's
   namespace**. The namespace defaults to **`parallax`** and is configurable for
   advanced users (an "Advanced" field in the connect form). One server can host
@@ -287,9 +287,43 @@ Details and status tracked in [todo.md](todo.md):
 - **API:** straightforward programmatic querying of the database for modularity
   and scripting.
 - **LLM/agent access:** Parallax as a powerful database backend for agent memory
-  and context (e.g. Claude using it while chatting with a given user).
+  and context (e.g. Claude using it while chatting with a given user) — now
+  being realised as the MCP server (§11).
 
-## 11. Decision log
+## 11. MCP server
+
+Realises the §10 "LLM/agent access" plan: an MCP server giving LLMs and agents
+structured access to a Parallax database. Designed 2026-08-22; lives on the
+`mcp` branch until merged.
+
+- **Form:** a **stdio MCP server in this repo** (`mcp/server.ts`) built on the
+  official TypeScript SDK, run with `bun run mcp` (Bun executes TS directly —
+  the reason Bun was chosen). It shares a **pure data layer** with the web app:
+  the query logic is extracted from the runes stores into plain TS modules so
+  both the Svelte app and the headless server import the same code.
+- **Config: environment variables** — `SURREAL_URL`, `SURREAL_NAMESPACE`
+  (default `parallax`), `SURREAL_DATABASE`, `SURREAL_AUTH_LEVEL`
+  (root/namespace/database/anonymous), `SURREAL_USER`, `SURREAL_PASS`.
+  Recommended registration: a dedicated **EDITOR-role database user**, capping
+  blast radius independent of tool design.
+- **Structured tools (v1 write scope: objects + notes CRUD):**
+  `list_classes`, `get_class`; `list_objects`, `get_object`, `create_object`,
+  `update_object`, `delete_object`; `list_notes`, `create_note`,
+  `update_note`, `delete_note`. Schema mutation via MCP is deliberately
+  excluded from v1 — schema stays human-owned in the app UI.
+- **Raw SurrealQL: a two-mode `query` tool, dry-run by default.** Full
+  SurrealQL is accepted; read-only statements execute directly and return
+  real data; write statements are wrapped in `BEGIN … CANCEL TRANSACTION`
+  under dry-run — errors surface, nothing persists. Committing requires an
+  explicit `dry_run: false`. Inputs containing transaction keywords are
+  rejected (a `COMMIT` in the text would escape the wrapper).
+- **Verified engine facts** (SurrealDB 3.2.4, 2026-08-22): cancelled
+  transactions roll back completely, **including DDL**; cancelled
+  transactions **discard statement results** (dry-run validates writes but
+  cannot preview their output); true undo of committed writes does not exist
+  on standard storage — the DB user's role and backups bound the damage.
+
+## 12. Decision log
 
 | Date       | Decision                                                                                                                                                                                                                                                        |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -323,7 +357,7 @@ Details and status tracked in [todo.md](todo.md):
 | 2026-08-22 | Connect UX: gate route `/connect` + one-shot silent auto-reconnect to the last-used profile/database when a password is available (§8)                                                                                                                          |
 | 2026-08-22 | Dev database: SurrealDB installed via the official installer into `~/.surrealdb` (brew approved first but blocked by outdated CLT on the owner's machine)                                                                                                       |
 | 2026-08-22 | Terminology: **"database"** is the official term for the container a user's data lives in — SurrealDB's own concept name, no product aliasing. Supersedes "vault" everywhere in UI, code, and docs (§8)                                                         |
-| 2026-08-22 | Interim UI: keep styling minimal, lean, and organised so a later design pass is frictionless; final visual design remains open (§7, §12)                                                                                                                        |
+| 2026-08-22 | Interim UI: keep styling minimal, lean, and organised so a later design pass is frictionless; final visual design remains open (§7, §13)                                                                                                                        |
 | 2026-08-22 | Field types v0.1: core scalars only (text, long text, number, boolean, datetime); references, select/enum, and lists deferred to todo.md (§4)                                                                                                                   |
 | 2026-08-22 | Class metadata: the real schema (DEFINE/INFO) is the sole structural authority; `parallax_class` meta table stores plural names, field order, and UI type hints (§3, §4)                                                                                        |
 | 2026-08-22 | Class designer scope v0.1: create + extend (add fields, edit plural); destructive schema ops deferred (§4)                                                                                                                                                      |
@@ -336,7 +370,7 @@ Details and status tracked in [todo.md](todo.md):
 | 2026-08-22 | Notes placement: pinned sidebar "Notes" section; Note is also an ordinary class with the standard Objects/Schema views (§5)                                                                                                                                     |
 | 2026-08-22 | Note provisioning: automatic on first use, idempotent (DEFINE IF NOT EXISTS + INSERT IGNORE meta); `created` enforced by the DB via DEFAULT time::now() READONLY (§5)                                                                                           |
 
-## 12. Open questions
+## 13. Open questions
 
 Undecided design decisions (ask the owner before acting on any of these):
 
@@ -350,12 +384,12 @@ Undecided design decisions (ask the owner before acting on any of these):
 - Visual design / styling approach (design system, component library, theming)
   — the connect flow ships with minimal hand-rolled CSS as a placeholder.
 
-## 13. Maintaining this document
+## 14. Maintaining this document
 
 - **Read first:** any human or agent starting work on Parallax reads this file
   before doing anything.
 - **Ask, then record:** decisions enter this file only after the owner makes
-  them. Update the Decision log (§11) and the relevant section in the same
+  them. Update the Decision log (§12) and the relevant section in the same
   commit/PR as the work that depends on the decision.
 - **Tasks go elsewhere:** new tasks, deferred actions, backlog items, and future
   planned features are recorded in [todo.md](todo.md), not here.

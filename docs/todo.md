@@ -88,5 +88,7 @@
       (e.g. `Event` ↔ Google Calendar, `Person` ↔ mobile phone contacts) (spec §10).
 - [ ] **Programmatic API** for straightforward querying/scripting against the
       database (spec §10).
-- [ ] **LLM/agent access**: expose Parallax as a database backend for agent
-      memory/context, e.g. for Claude (spec §10).
+- [ ] **LLM/agent access — MCP server v1** (designed 2026-08-22, spec §11;
+      `mcp` branch): extract the pure data layer from the runes stores, build
+      `mcp/server.ts` (structured CRUD tools + two-mode query tool), register
+      and test with a real agent.
