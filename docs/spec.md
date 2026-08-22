@@ -152,6 +152,15 @@ discussion task in [todo.md](todo.md)).
   service), **eslint-plugin-svelte**, and **eslint-config-prettier** so lint
   rules never fight the formatter. Run via `bun run lint` and `bun run lint:fix`.
   Formatting rules belong to Prettier; ESLint covers correctness only.
+- **Automated checks** run the same three tools from two places:
+    - **Git hooks:** committed to `.githooks/` and activated with
+      `core.hooksPath`, which the `prepare` script sets on `bun install`.
+      `pre-commit` runs Prettier, ESLint (both on staged files) and a full
+      `svelte-check`. It is **check-only** — it never rewrites or restages files,
+      so what was reviewed is what gets committed.
+    - **Agent hooks:** `.claude/settings.json` defines a `PostToolUse` hook on
+      `Write|Edit` that formats the touched file with Prettier, then runs ESLint
+      on it and returns any errors to the agent to fix in the same turn.
 - Test tooling is not yet decided (§12).
 
 ## 8. Connection & auth
@@ -186,30 +195,32 @@ Details and status tracked in [todo.md](todo.md):
 
 ## 11. Decision log
 
-| Date       | Decision                                                                                                                                                                            |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-22 | Project name "Parallax", tagline "Note-taking from a new perspective" (README, commit `a267ee6`)                                                                                    |
-| 2026-08-22 | docs/spec.md is the single source of truth; agent files must point to it                                                                                                            |
-| 2026-08-22 | Blank-slate policy: no design decision is assumed; every decision must be asked of the owner and recorded here before it is acted on                                                |
-| 2026-08-22 | Product definition: database-centred note-taking/PKM platform; SurrealDB as the core (§1, §2 verbatim)                                                                              |
-| 2026-08-22 | Domain model: classes (tables) with singular+plural names and custom fields; objects as schema-conforming instances; manual creation via form-style UI (§4)                         |
-| 2026-08-22 | Naming convention: `PascalCase` classes, `snake_case` fields (§4)                                                                                                                   |
-| 2026-08-22 | Principle: "smart database, dumb client"; schemas verified/enforced at the database level (§3)                                                                                      |
-| 2026-08-22 | Built-in `Note` class: `created` datetime + `content` long text; card-like and document-like capture UIs (§5)                                                                       |
-| 2026-08-22 | Distilled note-taking is the flagship feature; v1 flow = manual trigger + review before commit, explicitly temporary/experimental (§6)                                              |
-| 2026-08-22 | First client: web app, manual-connect only, connecting to arbitrary SurrealDB URLs (§7)                                                                                             |
-| 2026-08-22 | Frontend stack: TypeScript + Svelte (§7)                                                                                                                                            |
-| 2026-08-22 | Later client: Tauri desktop app based on the web app, bundling automatic local-DB instantiation (§7)                                                                                |
-| 2026-08-22 | Auth: pass through SurrealDB native auth; locally stored connection profiles; no Parallax account layer (§8)                                                                        |
-| 2026-08-22 | Milestones: v0.1 = foundation (connect, classes, objects, notes); v0.2 = distillation (§9)                                                                                          |
-| 2026-08-22 | LLM provider / extraction model for distillation: deliberately deferred — to be discussed with the owner (todo.md)                                                                  |
-| 2026-08-22 | docs/todo.md established as the single backlog file for tasks, deferred actions, and future features; rule recorded in AGENTS.md                                                    |
-| 2026-08-22 | Tooling: Bun as package manager + script runner; Vite remains the build tool (§7)                                                                                                   |
-| 2026-08-22 | Web app is SvelteKit in static/SPA mode (adapter-static, index.html fallback, no SSR/app server) (§7)                                                                               |
-| 2026-08-22 | Repo layout: app at repository root; monorepo only if/when separate packages appear (§7)                                                                                            |
-| 2026-08-22 | Test tooling: deliberately deferred until the first tests are written (todo.md)                                                                                                     |
-| 2026-08-22 | Formatting: Prettier + `prettier-plugin-svelte`; 4-space indents (2-space for JSON), single quotes, no trailing commas, 100-col print width; `format` / `format:check` scripts (§7) |
-| 2026-08-22 | Linting: ESLint flat config + typescript-eslint `recommendedTypeChecked` (type-aware) + eslint-plugin-svelte + eslint-config-prettier; `lint` / `lint:fix` scripts (§7)             |
+| Date       | Decision                                                                                                                                                                              |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-22 | Project name "Parallax", tagline "Note-taking from a new perspective" (README, commit `a267ee6`)                                                                                      |
+| 2026-08-22 | docs/spec.md is the single source of truth; agent files must point to it                                                                                                              |
+| 2026-08-22 | Blank-slate policy: no design decision is assumed; every decision must be asked of the owner and recorded here before it is acted on                                                  |
+| 2026-08-22 | Product definition: database-centred note-taking/PKM platform; SurrealDB as the core (§1, §2 verbatim)                                                                                |
+| 2026-08-22 | Domain model: classes (tables) with singular+plural names and custom fields; objects as schema-conforming instances; manual creation via form-style UI (§4)                           |
+| 2026-08-22 | Naming convention: `PascalCase` classes, `snake_case` fields (§4)                                                                                                                     |
+| 2026-08-22 | Principle: "smart database, dumb client"; schemas verified/enforced at the database level (§3)                                                                                        |
+| 2026-08-22 | Built-in `Note` class: `created` datetime + `content` long text; card-like and document-like capture UIs (§5)                                                                         |
+| 2026-08-22 | Distilled note-taking is the flagship feature; v1 flow = manual trigger + review before commit, explicitly temporary/experimental (§6)                                                |
+| 2026-08-22 | First client: web app, manual-connect only, connecting to arbitrary SurrealDB URLs (§7)                                                                                               |
+| 2026-08-22 | Frontend stack: TypeScript + Svelte (§7)                                                                                                                                              |
+| 2026-08-22 | Later client: Tauri desktop app based on the web app, bundling automatic local-DB instantiation (§7)                                                                                  |
+| 2026-08-22 | Auth: pass through SurrealDB native auth; locally stored connection profiles; no Parallax account layer (§8)                                                                          |
+| 2026-08-22 | Milestones: v0.1 = foundation (connect, classes, objects, notes); v0.2 = distillation (§9)                                                                                            |
+| 2026-08-22 | LLM provider / extraction model for distillation: deliberately deferred — to be discussed with the owner (todo.md)                                                                    |
+| 2026-08-22 | docs/todo.md established as the single backlog file for tasks, deferred actions, and future features; rule recorded in AGENTS.md                                                      |
+| 2026-08-22 | Tooling: Bun as package manager + script runner; Vite remains the build tool (§7)                                                                                                     |
+| 2026-08-22 | Web app is SvelteKit in static/SPA mode (adapter-static, index.html fallback, no SSR/app server) (§7)                                                                                 |
+| 2026-08-22 | Repo layout: app at repository root; monorepo only if/when separate packages appear (§7)                                                                                              |
+| 2026-08-22 | Test tooling: deliberately deferred until the first tests are written (todo.md)                                                                                                       |
+| 2026-08-22 | Formatting: Prettier + `prettier-plugin-svelte`; 4-space indents (2-space for JSON), single quotes, no trailing commas, 100-col print width; `format` / `format:check` scripts (§7)   |
+| 2026-08-22 | Linting: ESLint flat config + typescript-eslint `recommendedTypeChecked` (type-aware) + eslint-plugin-svelte + eslint-config-prettier; `lint` / `lint:fix` scripts (§7)               |
+| 2026-08-22 | Automated checks: committed `.githooks/` via `core.hooksPath` (installed by `prepare`); `pre-commit` runs Prettier + ESLint + svelte-check, check-only, no auto-fix or restaging (§7) |
+| 2026-08-22 | Agent hooks: `.claude/settings.json` `PostToolUse` on `Write                                                                                                                          | Edit` — Prettier writes the touched file, ESLint errors are fed back to the agent (§7) |
 
 ## 12. Open questions
 

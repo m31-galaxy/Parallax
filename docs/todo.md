@@ -16,6 +16,8 @@
       see spec.md §7.
 - [x] **Linting tooling** — ESLint chosen and configured, type-aware
       (2026-08-22); see spec.md §7.
+- [x] **Automated checks** — git `pre-commit` hook and Claude Code agent hooks
+      wired to Prettier, ESLint, and svelte-check (2026-08-22); see spec.md §7.
 - [ ] **Enforce the §4 naming convention** (`PascalCase` classes, `snake_case`
       fields) as validation in the class designer — deliberately not an ESLint
       rule (2026-08-22), since the convention governs user-defined database

@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# Parallax pre-commit gate: formatting, linting, and type checks (spec §7).
+#
+# Checks only — it never rewrites or restages files, so what you reviewed is
+# what gets committed. Installed by the `prepare` script via core.hooksPath.
+
+set -eu
+
+# Files staged for this commit: Added, Copied, Modified, Renamed.
+staged_count=$(git diff --cached --name-only --diff-filter=ACMR | wc -l | tr -d ' ')
+[ "$staged_count" -gt 0 ] || exit 0
+
+status=0
+
+# --- Prettier -------------------------------------------------------------
+# --ignore-unknown skips files Prettier has no parser for (.svg, .npmrc, ...).
+printf '→ prettier\n'
+if ! git diff --cached --name-only --diff-filter=ACMR -z |
+	xargs -0 bunx prettier --check --ignore-unknown; then
+	printf '\n✗ Formatting issues. Fix with: bun run format\n' >&2
+	status=1
+fi
+
+# --- ESLint ---------------------------------------------------------------
+# Only the extensions the flat config covers; other staged files are skipped.
+lintable=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|js|svelte)$' || true)
+if [ -n "$lintable" ]; then
+	printf '→ eslint\n'
+	if ! printf '%s\n' "$lintable" | tr '\n' '\0' | xargs -0 bunx eslint; then
+		printf '\n✗ Lint errors. Some are auto-fixable: bun run lint:fix\n' >&2
+		status=1
+	fi
+fi
+
+# --- svelte-check ---------------------------------------------------------
+# Whole-project type check: a staged change can break a file that is not staged.
+printf '→ svelte-check\n'
+if ! bun run check; then
+	printf '\n✗ Type errors. See the svelte-check output above.\n' >&2
+	status=1
+fi
+
+exit $status
