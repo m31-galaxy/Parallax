@@ -41,3 +41,18 @@ DEFINE FIELD IF NOT EXISTS committed ON parallax_proposal TYPE option<record>;
 DEFINE FIELD IF NOT EXISTS extractor ON parallax_proposal TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS created ON parallax_proposal TYPE datetime
     DEFAULT time::now() READONLY;
+
+-- Distillation request queue. The app writes a row here to ask for a note to be
+-- distilled; the worker (worker.py) watches this table, runs extraction, writes
+-- parallax_proposal rows, and marks the request done. This is the whole bridge
+-- between the browser (which cannot run the model) and the local model - the
+-- app only ever talks to SurrealDB, so it stays a pure SPA (spec section 7).
+DEFINE TABLE IF NOT EXISTS parallax_distill_request SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS note ON parallax_distill_request TYPE record<Note>;
+DEFINE FIELD IF NOT EXISTS status ON parallax_distill_request TYPE string
+    ASSERT $value IN ["pending", "running", "done", "error"] DEFAULT "pending";
+DEFINE FIELD IF NOT EXISTS error ON parallax_distill_request TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS proposal_count ON parallax_distill_request TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS requested ON parallax_distill_request TYPE datetime
+    DEFAULT time::now() READONLY;
+DEFINE FIELD IF NOT EXISTS finished ON parallax_distill_request TYPE option<datetime>;
