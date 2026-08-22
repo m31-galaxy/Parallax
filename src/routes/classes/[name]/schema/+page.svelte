@@ -12,11 +12,14 @@
         type NewField
     } from '$lib/db/classes.svelte';
     import { connection } from '$lib/db/connection.svelte';
+    import { DelayedLoading } from '$lib/loading.svelte';
 
     let cls = $state<ClassView | null>(null);
     let loadError = $state<string | null>(null);
     let busy = $state(false);
     let actionError = $state<string | null>(null);
+    const loading = new DelayedLoading();
+    let requestToken = 0;
 
     let pluralDraft = $state('');
     let newField = $state<NewField>({ name: '', type: 'text', required: false });
@@ -31,16 +34,24 @@
         return err instanceof Error ? err.message : String(err);
     }
 
+    // Stale-while-loading: previous content stays visible unless the load
+    // outlives the grace window; the token discards out-of-order responses.
     async function load(name: string): Promise<void> {
-        cls = null;
+        const token = ++requestToken;
+        loading.start();
         loadError = null;
         actionError = null;
         try {
             const view = await getClass(connection.client, name);
+            if (token !== requestToken) return;
             cls = view;
             pluralDraft = view.plural;
         } catch (err) {
+            if (token !== requestToken) return;
             loadError = toMessage(err);
+            cls = null;
+        } finally {
+            if (token === requestToken) loading.finish();
         }
     }
 
@@ -83,7 +94,7 @@
 <main>
     {#if loadError !== null}
         <p class="error">{loadError}</p>
-    {:else if cls === null}
+    {:else if loading.pending || cls === null}
         <p class="muted">Loading…</p>
     {:else}
         <form

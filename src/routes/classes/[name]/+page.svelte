@@ -3,6 +3,7 @@
     import { page } from '$app/state';
     import { classStore, getClass, type ClassView } from '$lib/db/classes.svelte';
     import { connection } from '$lib/db/connection.svelte';
+    import { DelayedLoading } from '$lib/loading.svelte';
     import {
         deleteObject,
         formatValue,
@@ -16,6 +17,8 @@
     let loadError = $state<string | null>(null);
     let actionError = $state<string | null>(null);
     let busy = $state(false);
+    const loading = new DelayedLoading();
+    let requestToken = 0;
 
     const className = $derived(page.params.name ?? '');
     const singular = $derived(classStore.all.find((c) => c.name === className)?.name ?? className);
@@ -28,16 +31,26 @@
         return err instanceof Error ? err.message : String(err);
     }
 
+    // Stale-while-loading: previous content stays visible unless the load
+    // outlives the grace window; the token discards out-of-order responses.
     async function load(name: string): Promise<void> {
-        cls = null;
-        objects = null;
+        const token = ++requestToken;
+        loading.start();
         loadError = null;
         actionError = null;
         try {
-            cls = await getClass(connection.client, name);
-            objects = await listObjects(connection.client, name);
+            const view = await getClass(connection.client, name);
+            const rows = await listObjects(connection.client, name);
+            if (token !== requestToken) return;
+            cls = view;
+            objects = rows;
         } catch (err) {
+            if (token !== requestToken) return;
             loadError = toMessage(err);
+            cls = null;
+            objects = null;
+        } finally {
+            if (token === requestToken) loading.finish();
         }
     }
 
@@ -59,7 +72,7 @@
 <main>
     {#if loadError !== null}
         <p class="error">{loadError}</p>
-    {:else if cls === null || objects === null}
+    {:else if loading.pending || cls === null || objects === null}
         <p class="muted">Loading…</p>
     {:else}
         <a class="button" href={resolve('/classes/[name]/new', { name: className })}>

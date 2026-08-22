@@ -71,6 +71,9 @@
     <div class="workspace">
         <nav class="sidebar" aria-label="Classes">
             <h2>Classes</h2>
+            {#if classStore.error !== null}
+                <p class="side-error">{classStore.error}</p>
+            {/if}
             <ul>
                 {#each classStore.all as cls (cls.name)}
                     {@const href = resolve('/classes/[name]', { name: cls.name })}
@@ -186,6 +189,13 @@
         margin-top: 0.75rem;
         color: #555;
         font-size: 0.9rem;
+    }
+
+    .side-error {
+        margin: 0 0 0.5rem;
+        color: #b3261e;
+        font-size: 0.8rem;
+        overflow-wrap: anywhere;
     }
 
     .content {

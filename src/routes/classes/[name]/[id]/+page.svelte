@@ -5,6 +5,7 @@
     import ObjectForm from '$lib/components/ObjectForm.svelte';
     import { getClass, type ClassView } from '$lib/db/classes.svelte';
     import { connection } from '$lib/db/connection.svelte';
+    import { DelayedLoading } from '$lib/loading.svelte';
     import { getObject, updateObject, type ObjectRecord } from '$lib/db/objects';
 
     let cls = $state<ClassView | null>(null);
@@ -12,6 +13,8 @@
     let loadError = $state<string | null>(null);
     let submitError = $state<string | null>(null);
     let busy = $state(false);
+    const loading = new DelayedLoading();
+    let requestToken = 0;
 
     const className = $derived(page.params.name ?? '');
     const objectIdParam = $derived(page.params.id ?? '');
@@ -20,17 +23,26 @@
         void load(className, objectIdParam);
     });
 
+    // Stale-while-loading: previous content stays visible unless the load
+    // outlives the grace window; the token discards out-of-order responses.
     async function load(name: string, id: string): Promise<void> {
-        cls = null;
-        record = null;
+        const token = ++requestToken;
+        loading.start();
         loadError = null;
         try {
-            cls = await getClass(connection.client, name);
+            const view = await getClass(connection.client, name);
             const found = await getObject(connection.client, name, id);
+            if (token !== requestToken) return;
             if (found === undefined) throw new Error(`No ${name} with id "${id}" exists`);
+            cls = view;
             record = found;
         } catch (err) {
+            if (token !== requestToken) return;
             loadError = err instanceof Error ? err.message : String(err);
+            cls = null;
+            record = null;
+        } finally {
+            if (token === requestToken) loading.finish();
         }
     }
 
@@ -51,18 +63,20 @@
 <main>
     {#if loadError !== null}
         <p class="error">{loadError}</p>
-    {:else if cls === null || record === null}
+    {:else if loading.pending || cls === null || record === null}
         <p class="muted">Loading…</p>
     {:else}
         <h2>Edit <code>{String(record.id)}</code></h2>
-        <ObjectForm
-            fields={cls.fields}
-            initial={record}
-            submitLabel="Save"
-            {busy}
-            error={submitError}
-            onsubmit={(data: Record<string, unknown>) => void submit(data)}
-        />
+        {#key record}
+            <ObjectForm
+                fields={cls.fields}
+                initial={record}
+                submitLabel="Save"
+                {busy}
+                error={submitError}
+                onsubmit={(data: Record<string, unknown>) => void submit(data)}
+            />
+        {/key}
     {/if}
 </main>
 

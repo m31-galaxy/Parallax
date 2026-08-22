@@ -197,6 +197,7 @@ export async function updatePlural(db: Surreal, className: string, plural: strin
 
 let classes = $state<ClassSummary[]>([]);
 let loaded = $state(false);
+let listError = $state<string | null>(null);
 
 export const classStore = {
     get all(): ClassSummary[] {
@@ -205,17 +206,35 @@ export const classStore = {
     get loaded(): boolean {
         return loaded;
     },
+    get error(): string | null {
+        return listError;
+    },
 
     async refresh(): Promise<void> {
-        const [rows] = await connection.client.query<[MetaRow[]]>(
-            `SELECT table_name, plural, fields FROM ${META_TABLE} ORDER BY plural`
-        );
-        classes = rows.map((r) => ({ name: r.table_name, plural: r.plural }));
+        try {
+            const [rows] = await connection.client.query<[MetaRow[]]>(
+                `SELECT table_name, plural, fields FROM ${META_TABLE} ORDER BY plural`
+            );
+            classes = rows.map((r) => ({ name: r.table_name, plural: r.plural }));
+            listError = null;
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            // A fresh database has no meta table yet — that is simply "no
+            // classes", not an error. Anything else is surfaced.
+            if (message.includes(`'${META_TABLE}' does not exist`)) {
+                classes = [];
+                listError = null;
+            } else {
+                classes = [];
+                listError = message;
+            }
+        }
         loaded = true;
     },
 
     clear(): void {
         classes = [];
         loaded = false;
+        listError = null;
     }
 };

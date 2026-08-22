@@ -5,23 +5,40 @@
     import ObjectForm from '$lib/components/ObjectForm.svelte';
     import { getClass, type ClassView } from '$lib/db/classes.svelte';
     import { connection } from '$lib/db/connection.svelte';
+    import { DelayedLoading } from '$lib/loading.svelte';
     import { createObject } from '$lib/db/objects';
 
     let cls = $state<ClassView | null>(null);
     let loadError = $state<string | null>(null);
     let submitError = $state<string | null>(null);
     let busy = $state(false);
+    const loading = new DelayedLoading();
+    let requestToken = 0;
 
     const className = $derived(page.params.name ?? '');
 
     $effect(() => {
-        cls = null;
-        loadError = null;
-        getClass(connection.client, className).then(
-            (view) => (cls = view),
-            (err: unknown) => (loadError = err instanceof Error ? err.message : String(err))
-        );
+        void load(className);
     });
+
+    // Stale-while-loading: previous content stays visible unless the load
+    // outlives the grace window; the token discards out-of-order responses.
+    async function load(name: string): Promise<void> {
+        const token = ++requestToken;
+        loading.start();
+        loadError = null;
+        try {
+            const view = await getClass(connection.client, name);
+            if (token !== requestToken) return;
+            cls = view;
+        } catch (err) {
+            if (token !== requestToken) return;
+            loadError = err instanceof Error ? err.message : String(err);
+            cls = null;
+        } finally {
+            if (token === requestToken) loading.finish();
+        }
+    }
 
     async function submit(data: Record<string, unknown>): Promise<void> {
         busy = true;
@@ -41,16 +58,18 @@
     <h2>New {className}</h2>
     {#if loadError !== null}
         <p class="error">{loadError}</p>
-    {:else if cls === null}
+    {:else if loading.pending || cls === null}
         <p class="muted">Loading…</p>
     {:else}
-        <ObjectForm
-            fields={cls.fields}
-            submitLabel="Create"
-            {busy}
-            error={submitError}
-            onsubmit={(data: Record<string, unknown>) => void submit(data)}
-        />
+        {#key cls}
+            <ObjectForm
+                fields={cls.fields}
+                submitLabel="Create"
+                {busy}
+                error={submitError}
+                onsubmit={(data: Record<string, unknown>) => void submit(data)}
+            />
+        {/key}
     {/if}
 </main>
 

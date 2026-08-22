@@ -23,6 +23,12 @@
       rule (2026-08-22), since the convention governs user-defined database
       schemas at runtime, not TypeScript identifiers. Implemented 2026-08-22.
 
+- [ ] **SurrealDB live queries (`LIVE SELECT`)** as the structural
+      perceived-performance and collaboration play: subscribe per opened
+      class so data stays hot and updates in real time, eliminating loading
+      states more thoroughly than any prefetch. Proposed 2026-08-22 during
+      the preloading discussion — owner has not yet decided.
+
 ## v0.1 — Foundation (current milestone)
 
 - [x] Scaffold: SvelteKit static/SPA app at repo root, Bun tooling, surrealdb SDK (2026-08-22)

@@ -199,6 +199,14 @@ discussion task in [todo.md](todo.md)).
 - **App shell:** a persistent left sidebar lists classes by plural name with a
   "New class" action; the main area hosts the selected view. Object browsing
   will hang off the same shell.
+- **Perceived performance:** hovering an internal link preloads its route code
+  (SvelteKit's `data-sveltekit-preload-data="hover"`, on since the scaffold;
+  the "data" half is a no-op as Parallax has no `load` functions). Navigation
+  keeps showing the **previous content** and only switches to a loading
+  indicator when a load outlives a **50 ms grace window** (`LOADING_DELAY_MS`
+  in `src/lib/loading.svelte.ts`); an internal request token discards
+  out-of-order responses. Custom data prefetch-on-hover was considered and
+  not pursued while query latency is milliseconds-scale.
 - **Interim UI styling:** deliberately minimal, lean, and semantically
   organised hand-rolled CSS until a proper design pass. Keep markup clean and
   styles simple so a future "lick of paint" is as frictionless as possible;
@@ -302,6 +310,7 @@ Details and status tracked in [todo.md](todo.md):
 | 2026-08-22 | App shell: persistent sidebar listing classes by plural name; main area hosts the selected view (§7)                                                                                                                                                            |
 | 2026-08-22 | Class page is objects-first with the designer on a secondary "Schema" tab (§4)                                                                                                                                                                                  |
 | 2026-08-22 | Object CRUD v0.1: schema-driven forms with typed widgets; delete behind a confirm; empty optional inputs = unset; unsupported field types read-only (§4)                                                                                                        |
+| 2026-08-22 | Perceived performance: stale-while-loading navigation with a 50 ms delayed loading indicator; hover code-preloading kept (scaffold default); custom data prefetch-on-hover not pursued for now (§7)                                                             |
 
 ## 12. Open questions
 
