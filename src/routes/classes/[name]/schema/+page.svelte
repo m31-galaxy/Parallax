@@ -22,7 +22,7 @@
     let requestToken = 0;
 
     let pluralDraft = $state('');
-    let newField = $state<NewField>({ name: '', type: 'text', required: false });
+    let newField = $state<NewField>({ name: '', type: 'text', required: false, hint: '' });
 
     const className = $derived(page.params.name ?? '');
 
@@ -66,7 +66,7 @@
         actionError = null;
         try {
             await addField(connection.client, className, newField);
-            newField = { name: '', type: 'text', required: false };
+            newField = { name: '', type: 'text', required: false, hint: '' };
             await load(className);
             await classStore.refresh();
         } catch (err) {
@@ -123,6 +123,7 @@
                         <th>Name</th>
                         <th>Type</th>
                         <th>Required</th>
+                        <th>Description</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -135,6 +136,7 @@
                                     : `unsupported (${field.surrealType})`}
                             </td>
                             <td>{field.required ? 'yes' : 'no'}</td>
+                            <td class="hint-cell">{field.hint ?? '—'}</td>
                         </tr>
                     {/each}
                 </tbody>
@@ -162,6 +164,12 @@
                 <input type="checkbox" bind:checked={newField.required} />
                 required
             </label>
+            <input
+                class="hint"
+                bind:value={newField.hint}
+                placeholder="Description (optional) — helps distillation"
+                aria-label="Field description for distillation"
+            />
             <button type="submit" disabled={busy || newField.name === '' || fieldNameInvalid}>
                 Add field
             </button>
@@ -235,10 +243,21 @@
         display: flex;
         gap: 0.5rem;
         align-items: center;
+        flex-wrap: wrap;
     }
 
-    .add-field input:not([type='checkbox']) {
+    .add-field input:not([type='checkbox']):not(.hint) {
         flex: 1;
+    }
+
+    .add-field .hint {
+        flex-basis: 100%;
+        font-size: 0.85rem;
+    }
+
+    .hint-cell {
+        color: #555;
+        font-size: 0.85rem;
     }
 
     label.required {

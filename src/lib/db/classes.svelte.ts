@@ -37,6 +37,11 @@ export interface NewField {
     name: string;
     type: UiFieldType;
     required: boolean;
+    /**
+     * Optional plain-English description of what this field holds. Surfaced to
+     * the distillation extractor as the field's meaning; ignored by the DB.
+     */
+    hint?: string;
 }
 
 export interface ClassSummary {
@@ -52,6 +57,8 @@ export interface FieldView {
     uiType?: UiFieldType;
     surrealType: string;
     required: boolean;
+    /** Extraction hint, when one was recorded in the meta table. */
+    hint?: string;
 }
 
 export interface ClassView extends ClassSummary {
@@ -70,6 +77,8 @@ export function isValidFieldName(name: string): boolean {
 interface MetaFieldHint {
     name: string;
     ui_type: string;
+    /** Optional extraction hint; absent on classes made before this shipped. */
+    hint?: string;
 }
 
 interface MetaRow {
@@ -88,12 +97,19 @@ DEFINE FIELD IF NOT EXISTS plural ON ${META_TABLE} TYPE string;
 DEFINE FIELD IF NOT EXISTS fields ON ${META_TABLE} TYPE array<object>;
 DEFINE FIELD IF NOT EXISTS fields[*].name ON ${META_TABLE} TYPE string;
 DEFINE FIELD IF NOT EXISTS fields[*].ui_type ON ${META_TABLE} TYPE string;
+DEFINE FIELD IF NOT EXISTS fields[*].hint ON ${META_TABLE} TYPE option<string>;
 `;
 
 function fieldDefinition(className: string, field: NewField): string {
     const surrealType = SURREAL_TYPES[field.type];
     const type = field.required ? surrealType : `option<${surrealType}>`;
     return `DEFINE FIELD ${escapeIdent(field.name)} ON ${escapeIdent(className)} TYPE ${type}`;
+}
+
+/** A field's meta record: the UI hints the DB engine cannot hold. */
+function metaHint(field: NewField): MetaFieldHint {
+    const hint = field.hint?.trim();
+    return { name: field.name, ui_type: field.type, ...(hint ? { hint } : {}) };
 }
 
 async function fetchMeta(db: Surreal, className: string): Promise<MetaRow | undefined> {
@@ -124,14 +140,14 @@ function parseFieldDefinition(name: string, definition: string, hints: MetaField
         }
     }
 
-    const hint = hints.find((h) => h.name === name)?.ui_type;
-    let uiType = FIELD_TYPES.find((t) => t === hint);
+    const meta = hints.find((h) => h.name === name);
+    let uiType = FIELD_TYPES.find((t) => t === meta?.ui_type);
     // The hint must agree with the real schema; the schema wins (spec §3).
     if (uiType && SURREAL_TYPES[uiType] !== surrealType) uiType = undefined;
     if (!uiType) {
         uiType = FIELD_TYPES.find((t) => SURREAL_TYPES[t] === surrealType && t !== 'long_text');
     }
-    return { name, uiType, surrealType, required };
+    return { name, uiType, surrealType, required, hint: meta?.hint };
 }
 
 export async function getClass(db: Surreal, className: string): Promise<ClassView> {
@@ -170,7 +186,7 @@ export async function createClass(
     await db.query(statements.join(';\n'), {
         name,
         plural,
-        fields: fields.map((f) => ({ name: f.name, ui_type: f.type }))
+        fields: fields.map(metaHint)
     });
 }
 
@@ -182,7 +198,7 @@ export async function addField(db: Surreal, className: string, field: NewField):
     ];
     await db.query(statements.join(';\n'), {
         name: className,
-        hint: [{ name: field.name, ui_type: field.type }]
+        hint: [metaHint(field)]
     });
 }
 

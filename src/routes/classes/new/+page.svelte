@@ -19,7 +19,7 @@
 
     let nextKey = 0;
     function blankField(): FieldDraft {
-        return { key: nextKey++, name: '', type: 'text', required: false };
+        return { key: nextKey++, name: '', type: 'text', required: false, hint: '' };
     }
 
     let name = $state('');
@@ -113,6 +113,12 @@
                         ✕
                     </button>
                 </div>
+                <input
+                    class="hint"
+                    bind:value={field.hint}
+                    placeholder="Description (optional) — helps distillation, e.g. “their job or profession”"
+                    aria-label="Field description for distillation"
+                />
             {/each}
             <button type="button" onclick={() => fields.push(blankField())}>+ Add field</button>
         </fieldset>
@@ -186,6 +192,17 @@
 
     .field-row input:not([type='checkbox']) {
         flex: 1;
+    }
+
+    .hint {
+        width: 100%;
+        font-size: 0.85rem;
+        color: #333;
+        margin-bottom: 0.25rem;
+    }
+
+    .hint::placeholder {
+        color: #999;
     }
 
     label.required {
