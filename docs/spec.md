@@ -25,8 +25,8 @@
 
 **Parallax** is a note-taking and personal knowledge management (PKM) platform
 centred around a **database**, in the same way that Obsidian is a note-taking/PKM
-platform centred around a directory of local Markdown files. Tagline: *"Note-taking
-from a new perspective."*
+platform centred around a directory of local Markdown files. Tagline: _"Note-taking
+from a new perspective."_
 
 The core for now is **SurrealDB**. Users define schemas ("classes") that translate
 directly to structure in the database, create structured "objects" through
@@ -43,7 +43,7 @@ Recorded 2026-08-22, quoted exactly to preserve the owner's original intent:
 >
 > Where possible, schemas should be verified and enforced at the database level, with the client and frontend UI simply passing through / surfacing what is/isn't allowed. As much as possible, we want to have "smart database, dumb client" - as this makes it easier to build on top, create modularity, have a single ground source of truth, and sync/backup/restore as much state as possible just by copying the db.
 >
-> The user should be able to manually create "objects" - again borrowing terms from OOP. These should be instances of a class, and follow the schema. When manually creating an object of a given type (an *object* always has a *type* which is a *class*), the user should be presented with a UI which feels similar to filling out a form - rather than a freeform text note.
+> The user should be able to manually create "objects" - again borrowing terms from OOP. These should be instances of a class, and follow the schema. When manually creating an object of a given type (an _object_ always has a _type_ which is a _class_), the user should be presented with a UI which feels similar to filling out a form - rather than a freeform text note.
 >
 > As a general naming convention for this project, classes should be PascalCase and fields should be snake_case.
 >
@@ -52,7 +52,7 @@ Recorded 2026-08-22, quoted exactly to preserve the owner's original intent:
 > Future expansion plans / scope include a sync feature, where a table could be set up to stay in sync with external data (e.g. syncing an Event class with Google Calendar, or a Person class with your mobile phone contacts), as well as an API for interacting querying the database in a straightforward programmatic manner for easy modularity and scripting. It should also be accessible to LLMs and agents, such that e.g. Claude could use it as a powerful database backend for memory and context on a given user chatting to it.
 
 The sections below expand this into a fuller picture. Where an expansion is a
-*derived consequence* rather than the owner's literal words, it is marked
+_derived consequence_ rather than the owner's literal words, it is marked
 **(derived)**; derived items were accepted via plan approval on 2026-08-22, but
 their details remain open to revision (see §12).
 
@@ -77,11 +77,11 @@ their details remain open to revision (see §12).
 
 Terminology borrows deliberately from OOP:
 
-| Term | Meaning |
-|---|---|
-| **Class** | A user-defined schema, backed by one SurrealDB table. Has a **singular and a plural name** (for UI fluency, e.g. "Person" / "People") and a customisable set of **fields**. |
-| **Field** | A named, typed attribute of a class (e.g. `first_name`, `date_of_birth`). |
-| **Object** | An instance of a class — a row/record conforming to its schema. An *object* always has a *type*, which is a *class*. |
+| Term       | Meaning                                                                                                                                                                     |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Class**  | A user-defined schema, backed by one SurrealDB table. Has a **singular and a plural name** (for UI fluency, e.g. "Person" / "People") and a customisable set of **fields**. |
+| **Field**  | A named, typed attribute of a class (e.g. `first_name`, `date_of_birth`).                                                                                                   |
+| **Object** | An instance of a class — a row/record conforming to its schema. An _object_ always has a _type_, which is a _class_.                                                        |
 
 - **Naming convention (project-wide):** classes are `PascalCase`, fields are
   `snake_case`.
@@ -95,9 +95,9 @@ Terminology borrows deliberately from OOP:
 
 **Note** — the built-in basic class backing freeform capture:
 
-| Field | Type |
-|---|---|
-| `created` | datetime |
+| Field     | Type      |
+| --------- | --------- |
+| `created` | datetime  |
 | `content` | long text |
 
 Notes are captured through either:
@@ -121,8 +121,8 @@ The flagship feature ("distilled note-taking" / "distilled journalling"):
 
 **v1 flow (temporary):** distillation is **manually triggered** per note, and
 extracted proposals go through a **review step** (approve/edit/reject) before
-anything is committed to the database. This is an explicitly *temporary,
-experimental* choice — alternative trigger/commit models will be revisited later
+anything is committed to the database. This is an explicitly _temporary,
+experimental_ choice — alternative trigger/commit models will be revisited later
 (see [todo.md](todo.md)).
 
 The LLM provider / extraction model is **deliberately undecided** (§12;
@@ -136,14 +136,19 @@ discussion task in [todo.md](todo.md)).
 - **Tooling: Bun** as package manager and script runner (TS dev scripts run
   directly under Bun); **Vite remains the build tool**. The app lives at the
   **repository root** (monorepo only if/when separate packages appear).
-- The web app is **manual-connect only**: the user can connect to an *arbitrary*
+- The web app is **manual-connect only**: the user can connect to an _arbitrary_
   SurrealDB database (URL), which makes remote connections and collaboration
   effectively free. It does not spawn or manage database processes.
 - **Later:** a **Tauri desktop app based on the web app**, which additionally
   bundles the "easy local database" functionality — automatically instantiating
   or connecting to a local SurrealDB server process. (Tracked in
   [todo.md](todo.md).)
-- Test tooling and formatting/linting tooling are not yet decided (§12).
+- **Formatting: Prettier** (with `prettier-plugin-svelte`), configured in
+  `.prettierrc`: 4-space indents (2-space for JSON), single quotes, no trailing
+  commas, 100-column print width. Run via `bun run format` (write) and
+  `bun run format:check` (verify). Linting tooling (e.g. ESLint) is still
+  undecided (§12).
+- Test tooling is not yet decided (§12).
 
 ## 8. Connection & auth
 
@@ -156,11 +161,11 @@ discussion task in [todo.md](todo.md)).
 
 ## 9. Milestones
 
-| Milestone | Scope |
-|---|---|
-| **v0.1 — Foundation** | Connect flow (arbitrary URL + SurrealDB auth + profiles), class designer (create/edit classes: singular/plural names, fields), object CRUD via schema-driven forms, Note capture. |
-| **v0.2 — Distillation** | Manual trigger + review-before-commit distillation. |
-| Later | See [todo.md](todo.md). |
+| Milestone               | Scope                                                                                                                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **v0.1 — Foundation**   | Connect flow (arbitrary URL + SurrealDB auth + profiles), class designer (create/edit classes: singular/plural names, fields), object CRUD via schema-driven forms, Note capture. |
+| **v0.2 — Distillation** | Manual trigger + review-before-commit distillation.                                                                                                                               |
+| Later                   | See [todo.md](todo.md).                                                                                                                                                           |
 
 No dates attached; milestones are sequenced, not scheduled.
 
@@ -177,28 +182,30 @@ Details and status tracked in [todo.md](todo.md):
 
 ## 11. Decision log
 
-| Date | Decision |
-|---|---|
-| 2026-08-22 | Project name "Parallax", tagline "Note-taking from a new perspective" (README, commit `a267ee6`) |
-| 2026-08-22 | docs/spec.md is the single source of truth; agent files must point to it |
-| 2026-08-22 | Blank-slate policy: no design decision is assumed; every decision must be asked of the owner and recorded here before it is acted on |
-| 2026-08-22 | Product definition: database-centred note-taking/PKM platform; SurrealDB as the core (§1, §2 verbatim) |
-| 2026-08-22 | Domain model: classes (tables) with singular+plural names and custom fields; objects as schema-conforming instances; manual creation via form-style UI (§4) |
-| 2026-08-22 | Naming convention: `PascalCase` classes, `snake_case` fields (§4) |
-| 2026-08-22 | Principle: "smart database, dumb client"; schemas verified/enforced at the database level (§3) |
-| 2026-08-22 | Built-in `Note` class: `created` datetime + `content` long text; card-like and document-like capture UIs (§5) |
-| 2026-08-22 | Distilled note-taking is the flagship feature; v1 flow = manual trigger + review before commit, explicitly temporary/experimental (§6) |
-| 2026-08-22 | First client: web app, manual-connect only, connecting to arbitrary SurrealDB URLs (§7) |
-| 2026-08-22 | Frontend stack: TypeScript + Svelte (§7) |
-| 2026-08-22 | Later client: Tauri desktop app based on the web app, bundling automatic local-DB instantiation (§7) |
-| 2026-08-22 | Auth: pass through SurrealDB native auth; locally stored connection profiles; no Parallax account layer (§8) |
-| 2026-08-22 | Milestones: v0.1 = foundation (connect, classes, objects, notes); v0.2 = distillation (§9) |
-| 2026-08-22 | LLM provider / extraction model for distillation: deliberately deferred — to be discussed with the owner (todo.md) |
-| 2026-08-22 | docs/todo.md established as the single backlog file for tasks, deferred actions, and future features; rule recorded in AGENTS.md |
-| 2026-08-22 | Tooling: Bun as package manager + script runner; Vite remains the build tool (§7) |
-| 2026-08-22 | Web app is SvelteKit in static/SPA mode (adapter-static, index.html fallback, no SSR/app server) (§7) |
-| 2026-08-22 | Repo layout: app at repository root; monorepo only if/when separate packages appear (§7) |
-| 2026-08-22 | Test tooling: deliberately deferred until the first tests are written (todo.md) |
+| Date       | Decision                                                                                                                                                                            |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-22 | Project name "Parallax", tagline "Note-taking from a new perspective" (README, commit `a267ee6`)                                                                                    |
+| 2026-08-22 | docs/spec.md is the single source of truth; agent files must point to it                                                                                                            |
+| 2026-08-22 | Blank-slate policy: no design decision is assumed; every decision must be asked of the owner and recorded here before it is acted on                                                |
+| 2026-08-22 | Product definition: database-centred note-taking/PKM platform; SurrealDB as the core (§1, §2 verbatim)                                                                              |
+| 2026-08-22 | Domain model: classes (tables) with singular+plural names and custom fields; objects as schema-conforming instances; manual creation via form-style UI (§4)                         |
+| 2026-08-22 | Naming convention: `PascalCase` classes, `snake_case` fields (§4)                                                                                                                   |
+| 2026-08-22 | Principle: "smart database, dumb client"; schemas verified/enforced at the database level (§3)                                                                                      |
+| 2026-08-22 | Built-in `Note` class: `created` datetime + `content` long text; card-like and document-like capture UIs (§5)                                                                       |
+| 2026-08-22 | Distilled note-taking is the flagship feature; v1 flow = manual trigger + review before commit, explicitly temporary/experimental (§6)                                              |
+| 2026-08-22 | First client: web app, manual-connect only, connecting to arbitrary SurrealDB URLs (§7)                                                                                             |
+| 2026-08-22 | Frontend stack: TypeScript + Svelte (§7)                                                                                                                                            |
+| 2026-08-22 | Later client: Tauri desktop app based on the web app, bundling automatic local-DB instantiation (§7)                                                                                |
+| 2026-08-22 | Auth: pass through SurrealDB native auth; locally stored connection profiles; no Parallax account layer (§8)                                                                        |
+| 2026-08-22 | Milestones: v0.1 = foundation (connect, classes, objects, notes); v0.2 = distillation (§9)                                                                                          |
+| 2026-08-22 | LLM provider / extraction model for distillation: deliberately deferred — to be discussed with the owner (todo.md)                                                                  |
+| 2026-08-22 | docs/todo.md established as the single backlog file for tasks, deferred actions, and future features; rule recorded in AGENTS.md                                                    |
+| 2026-08-22 | Tooling: Bun as package manager + script runner; Vite remains the build tool (§7)                                                                                                   |
+| 2026-08-22 | Web app is SvelteKit in static/SPA mode (adapter-static, index.html fallback, no SSR/app server) (§7)                                                                               |
+| 2026-08-22 | Repo layout: app at repository root; monorepo only if/when separate packages appear (§7)                                                                                            |
+| 2026-08-22 | Test tooling: deliberately deferred until the first tests are written (todo.md)                                                                                                     |
+| 2026-08-22 | Formatting: Prettier + `prettier-plugin-svelte`; 4-space indents (2-space for JSON), single quotes, no trailing commas, 100-col print width; `format` / `format:check` scripts (§7) |
+| 2026-08-22 | Linting tooling (ESLint or alternative) remains undecided — Prettier covers formatting only (§12)                                                                                   |
 
 ## 12. Open questions
 
@@ -213,8 +220,8 @@ Undecided design decisions (ask the owner before acting on any of these):
 - Do both the card-like and document-like note editors ship in v0.1?
 - Test tooling (Vitest vs `bun test` vs a split) — deferred until the first
   tests are written.
-- Formatting/linting tooling (e.g. Prettier/ESLint) — not yet chosen; none is
-  configured.
+- Linting tooling (e.g. ESLint) — not yet chosen; none is configured.
+  (Formatting was decided on 2026-08-22: Prettier — see §7.)
 - Exact in-database representation of class metadata (§3.3's metadata table).
 - Shape of the distillation review UI (v0.2).
 

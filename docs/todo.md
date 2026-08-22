@@ -12,8 +12,10 @@
       Record the outcome in spec.md (§6, §11, §12).
 - [ ] **Test tooling** (Vitest vs `bun test` vs split) — deferred (2026-08-22)
       until the first tests are written.
-- [ ] **Formatting/linting tooling** (Prettier/ESLint or alternatives) — none
-      configured yet; decide before the codebase grows.
+- [x] **Formatting tooling** — Prettier chosen and configured (2026-08-22);
+      see spec.md §7.
+- [ ] **Linting tooling** (ESLint or alternatives) — still unchosen; Prettier
+      covers formatting only. Decide before the codebase grows.
 
 ## v0.1 — Foundation (current milestone)
 

@@ -1,0 +1,7 @@
+# Package managers
+bun.lock
+
+# Build output and generated files
+.svelte-kit
+build
+node_modules
