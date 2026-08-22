@@ -1,0 +1,343 @@
+{
+  "model": "fastino/gliner2-base-v1",
+  "trials": [
+    {
+      "content_sha": "76b87202a149f9dc",
+      "torch": "2.13.0+cpu",
+      "structured": [
+        {
+          "name": "Saturday 22 August",
+          "confidence": 0.504901,
+          "location": null
+        },
+        {
+          "name": "breakfast",
+          "confidence": 0.914022,
+          "location": "Café Lumen on Bridge Street"
+        },
+        {
+          "name": "breakfast",
+          "confidence": 0.565166,
+          "location": null
+        },
+        {
+          "name": "thesis defence",
+          "confidence": 0.508357,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.660048,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "Mei's birthday picnic",
+          "confidence": 0.926307,
+          "location": "Victoria Park"
+        },
+        {
+          "name": "Dinner",
+          "confidence": 0.96473,
+          "location": "home"
+        }
+      ],
+      "entities": [
+        ["event", "Dinner", 0.861174],
+        ["event", "birthday picnic", 0.88661],
+        ["event", "thesis defence", 0.951451],
+        ["location", "Bridge Street", 0.86948],
+        ["location", "Café Lumen", 0.978729],
+        ["location", "Eastway", 0.794391],
+        ["location", "Robinson Library", 0.981132],
+        ["location", "Victoria Park", 0.994259],
+        ["location", "climbing gym", 0.921983],
+        ["location", "home", 0.869912],
+        ["person", "Anna", 0.999908],
+        ["person", "Dev", 0.999874],
+        ["person", "Mei", 0.988352],
+        ["person", "Mum", 0.973908],
+        ["person", "Tom", 0.96984]
+      ]
+    },
+    {
+      "content_sha": "76b87202a149f9dc",
+      "torch": "2.13.0+cpu",
+      "structured": [
+        {
+          "name": "breakfast",
+          "confidence": 0.918307,
+          "location": "Café Lumen on Bridge Street"
+        },
+        {
+          "name": "breakfast",
+          "confidence": 0.561329,
+          "location": null
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.530317,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.657744,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "Mei's birthday picnic",
+          "confidence": 0.928262,
+          "location": "Victoria Park"
+        },
+        {
+          "name": "climbing gym",
+          "confidence": 0.516604,
+          "location": "climbing gym on Eastway"
+        },
+        {
+          "name": "Dinner",
+          "confidence": 0.966197,
+          "location": "home"
+        }
+      ],
+      "entities": [
+        ["event", "Dinner", 0.861174],
+        ["event", "birthday picnic", 0.88661],
+        ["event", "thesis defence", 0.951451],
+        ["location", "Bridge Street", 0.86948],
+        ["location", "Café Lumen", 0.978729],
+        ["location", "Eastway", 0.794391],
+        ["location", "Robinson Library", 0.981132],
+        ["location", "Victoria Park", 0.994259],
+        ["location", "climbing gym", 0.921983],
+        ["location", "home", 0.869912],
+        ["person", "Anna", 0.999908],
+        ["person", "Dev", 0.999874],
+        ["person", "Mei", 0.988352],
+        ["person", "Mum", 0.973908],
+        ["person", "Tom", 0.96984]
+      ]
+    },
+    {
+      "content_sha": "76b87202a149f9dc",
+      "torch": "2.13.0+cpu",
+      "structured": [
+        {
+          "name": "breakfast",
+          "confidence": 0.929974,
+          "location": "Café Lumen on Bridge Street"
+        },
+        {
+          "name": "thesis defence",
+          "confidence": 0.806924,
+          "location": null
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.671806,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.690443,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "Mei's birthday picnic",
+          "confidence": 0.920549,
+          "location": "Victoria Park"
+        },
+        {
+          "name": "Dinner",
+          "confidence": 0.95447,
+          "location": "home"
+        }
+      ],
+      "entities": [
+        ["event", "Dinner", 0.861174],
+        ["event", "birthday picnic", 0.88661],
+        ["event", "thesis defence", 0.951451],
+        ["location", "Bridge Street", 0.86948],
+        ["location", "Café Lumen", 0.978729],
+        ["location", "Eastway", 0.794391],
+        ["location", "Robinson Library", 0.981132],
+        ["location", "Victoria Park", 0.994259],
+        ["location", "climbing gym", 0.921983],
+        ["location", "home", 0.869912],
+        ["person", "Anna", 0.999908],
+        ["person", "Dev", 0.999874],
+        ["person", "Mei", 0.988352],
+        ["person", "Mum", 0.973908],
+        ["person", "Tom", 0.96984]
+      ]
+    },
+    {
+      "content_sha": "76b87202a149f9dc",
+      "torch": "2.13.0+cpu",
+      "structured": [
+        {
+          "name": "breakfast",
+          "confidence": 0.929046,
+          "location": "Café Lumen on Bridge Street"
+        },
+        {
+          "name": "thesis defence",
+          "confidence": 0.78135,
+          "location": null
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.634698,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.665835,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "Mei's birthday picnic",
+          "confidence": 0.921999,
+          "location": "Victoria Park"
+        },
+        {
+          "name": "climbing",
+          "confidence": 0.501454,
+          "location": "climbing gym on Eastway"
+        },
+        {
+          "name": "Dinner",
+          "confidence": 0.959743,
+          "location": "home"
+        }
+      ],
+      "entities": [
+        ["event", "Dinner", 0.861174],
+        ["event", "birthday picnic", 0.88661],
+        ["event", "thesis defence", 0.951451],
+        ["location", "Bridge Street", 0.86948],
+        ["location", "Café Lumen", 0.978729],
+        ["location", "Eastway", 0.794391],
+        ["location", "Robinson Library", 0.981132],
+        ["location", "Victoria Park", 0.994259],
+        ["location", "climbing gym", 0.921983],
+        ["location", "home", 0.869912],
+        ["person", "Anna", 0.999908],
+        ["person", "Dev", 0.999874],
+        ["person", "Mei", 0.988352],
+        ["person", "Mum", 0.973908],
+        ["person", "Tom", 0.96984]
+      ]
+    },
+    {
+      "content_sha": "76b87202a149f9dc",
+      "torch": "2.13.0+cpu",
+      "structured": [
+        {
+          "name": "breakfast",
+          "confidence": 0.920359,
+          "location": "Café Lumen on Bridge Street"
+        },
+        {
+          "name": "breakfast",
+          "confidence": 0.522473,
+          "location": null
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.566778,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.65262,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "Mei's birthday picnic",
+          "confidence": 0.915428,
+          "location": "Victoria Park"
+        },
+        {
+          "name": "Dinner",
+          "confidence": 0.961084,
+          "location": "home"
+        }
+      ],
+      "entities": [
+        ["event", "Dinner", 0.861174],
+        ["event", "birthday picnic", 0.88661],
+        ["event", "thesis defence", 0.951451],
+        ["location", "Bridge Street", 0.86948],
+        ["location", "Café Lumen", 0.978729],
+        ["location", "Eastway", 0.794391],
+        ["location", "Robinson Library", 0.981132],
+        ["location", "Victoria Park", 0.994259],
+        ["location", "climbing gym", 0.921983],
+        ["location", "home", 0.869912],
+        ["person", "Anna", 0.999908],
+        ["person", "Dev", 0.999874],
+        ["person", "Mei", 0.988352],
+        ["person", "Mum", 0.973908],
+        ["person", "Tom", 0.96984]
+      ]
+    },
+    {
+      "content_sha": "76b87202a149f9dc",
+      "torch": "2.13.0+cpu",
+      "structured": [
+        {
+          "name": "breakfast",
+          "confidence": 0.921723,
+          "location": "Café Lumen on Bridge Street"
+        },
+        {
+          "name": "breakfast",
+          "confidence": 0.52265,
+          "location": null
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.565711,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "stats problem set",
+          "confidence": 0.646694,
+          "location": "Robinson Library"
+        },
+        {
+          "name": "Mei's birthday picnic",
+          "confidence": 0.915339,
+          "location": "Victoria Park"
+        },
+        {
+          "name": "climbing gym",
+          "confidence": 0.511777,
+          "location": "climbing gym on Eastway"
+        },
+        {
+          "name": "Dinner",
+          "confidence": 0.96202,
+          "location": "home"
+        }
+      ],
+      "entities": [
+        ["event", "Dinner", 0.861174],
+        ["event", "birthday picnic", 0.88661],
+        ["event", "thesis defence", 0.951451],
+        ["location", "Bridge Street", 0.86948],
+        ["location", "Café Lumen", 0.978729],
+        ["location", "Eastway", 0.794391],
+        ["location", "Robinson Library", 0.981132],
+        ["location", "Victoria Park", 0.994259],
+        ["location", "climbing gym", 0.921983],
+        ["location", "home", 0.869912],
+        ["person", "Anna", 0.999908],
+        ["person", "Dev", 0.999874],
+        ["person", "Mei", 0.988352],
+        ["person", "Mum", 0.973908],
+        ["person", "Tom", 0.96984]
+      ]
+    }
+  ]
+}

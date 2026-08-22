@@ -1,0 +1,97 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] You are using a model of type `extractor` to instantiate a model of type ``. This may be expected if you are loading a checkpoint that shares a subset of the architecture (e.g., loading a `sam2_video` checkpoint into `Sam2Model`), but is otherwise not supported and can yield errors. Please verify that the checkpoint is compatible with the model you are instantiating.
+
+======================================================================
+1. schema
+======================================================================
+applied schema.surql; Note / Person / Event / Proposal defined
+
+======================================================================
+2. capture — insert the journal as a Note
+======================================================================
+Note:42m737x5tuqhhbzxe9dk  (842 chars, 4 paragraphs)
+
+======================================================================
+3. distill — GLiNER2 over each paragraph
+======================================================================
+============================================================
+🧠 Model Configuration
+============================================================
+Encoder model      : microsoft/deberta-v3-base
+Counting layer     : count_lstm_v2
+Token pooling      : first
+============================================================
+model load 10.9s · distillation 3124 ms · 10 proposals (status=pending)
+  [Event ] 0.93  breakfast @ Café Lumen on Bridge Street · 9 · Anna
+  [Event ] 0.79  thesis defence @ — · — · Anna
+  [Event ] 0.67  stats problem set @ Robinson Library · late morning · Dev
+  [Event ] 0.93  Mei's birthday picnic @ Victoria Park · 2 · Tom, Mei's parents
+  [Event ] 0.96  Dinner @ home · — · Mum
+  [Person] 0.97  Anna
+  [Person] 0.95  Dev
+  [Person] 0.93  Tom
+  [Person] 0.86  Mei's parents
+  [Person] 0.99  Mum
+
+======================================================================
+4. provenance — every proposal points back into the note
+======================================================================
+  OK       chars  96–105 -> 'breakfast'
+  OK       chars 142–156 -> 'thesis defence'
+  OK       chars 293–310 -> 'stats problem set'
+  OK       chars 409–430 -> "Mei's birthday picnic"
+  OK       chars 641–647 -> 'Dinner'
+
+======================================================================
+5. review — approve all pending proposals
+======================================================================
+committed 10 objects; 0 proposals still pending
+
+======================================================================
+6. read the objects back OUT of SurrealDB
+======================================================================
+
+Person (5):
+  Anna
+  Dev
+  Mei's parents
+  Mum
+  Tom
+
+Event (5):
+  Dinner
+      location : home
+      time     : —
+      people   : Mum
+      source   : Note:42m737x5tuqhhbzxe9dk
+  Mei's birthday picnic
+      location : Victoria Park
+      time     : 2
+      people   : Tom, Mei's parents
+      source   : Note:42m737x5tuqhhbzxe9dk
+  breakfast
+      location : Café Lumen on Bridge Street
+      time     : 9
+      people   : Anna
+      source   : Note:42m737x5tuqhhbzxe9dk
+  stats problem set
+      location : Robinson Library
+      time     : late morning
+      people   : Dev
+      source   : Note:42m737x5tuqhhbzxe9dk
+  thesis defence
+      location : —
+      time     : —
+      people   : Anna
+      source   : Note:42m737x5tuqhhbzxe9dk
+
+======================================================================
+7. the links are real records, not strings
+======================================================================
+  Mei's birthday picnic -> ['Tom', "Mei's parents"] (resolved through record<Person>)
+  thesis defence -> ['Anna'] (resolved through record<Person>)
+  Dinner -> ['Mum'] (resolved through record<Person>)
+  breakfast -> ['Anna'] (resolved through record<Person>)
+  stats problem set -> ['Dev'] (resolved through record<Person>)
+
+Done. Objects above were read from SurrealDB, not from model output.

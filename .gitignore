@@ -21,3 +21,16 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# npm fallback when bun is unavailable; bun.lock is the committed lockfile
+package-lock.json
+
+# python experiment artefacts
+__pycache__/
+*.pyc
+
+# local SurrealDB data directories, wherever a server is started
+.data/
+
+# raw API probe output may contain account-specific detail
+experiments/distill-harness/pioneer_probe.json
