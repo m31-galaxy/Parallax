@@ -1,48 +1,52 @@
-# The distillation harness — what it does, and how to verify it
+# The distillation harness - what it does, and how to verify it
 
 **Run every command from the repository root** (`T:\Hackathons\Parallax`), not from this
 directory. All paths below are relative to it.
 
-**Shell:** commands are shown for **PowerShell**. Two things bite in PowerShell that do not
+**Shell:** commands are shown for **PowerShell**. Three things bite in PowerShell that do not
 in bash:
 
 - `curl` is an alias for `Invoke-WebRequest`, which does not understand `-u`, `-H`, `-d`.
-  **Always write `curl.exe`** — the real curl, shipped with Windows.
-- `\` is not a line continuation. Keep each command on one line (or use a backtick `` ` ``).
+  **Always write `curl.exe`** - the real curl, shipped with Windows.
+- `\` is not a line continuation. Keep each command on one line.
+- Double quotes expand `$variables`. **Wrap queries in single quotes** (see Part 3).
 
 Every command and every query below was run before being written down.
 
 ---
 
-## Part 1 — What the code actually does
+## Part 1 - What the code actually does
 
-The goal: turn a freeform note into structured database objects, which is the "distilled
-note-taking" feature in [spec §6](../../docs/spec.md). The pipeline is five steps.
+The goal: turn a freeform note into structured database objects. That is the "distilled
+note-taking" feature in [spec section 6](../../docs/spec.md). Five steps:
 
 ```
 journal.txt
-    |
-    | (1) stored as a Note row
-    v
-Note.content  ────────────────────────────────────────────┐
-    |                                                     │
-    | (2) split into paragraphs, offsets tracked          │ the original text is
-    v                                                     │ never modified - every
-"Around 2 we all met up at Victoria Park for Mei's..."    │ extraction just points
-    |                                                     │ back into it
-    | (3) GLiNER2 reads each paragraph                    │
-    v                                                     │
-{name: "Mei's birthday picnic", location: "Victoria Park",│
- people: ["Tom"], time: "2", confidence: 0.92,            │
- start: 409, end: 430}  ──────────────────────────────────┘
-    |
-    | (4) post-pass: drop low confidence, remove duplicates,
-    |     normalise names ("Mei's" -> "Mei")
-    v
-Proposal rows  (status = "pending" — nothing committed yet)
-    |
-    | (5) review: approve or reject
-    v
+  |
+  |  (1) stored as a Note row
+  v
+Note.content        <-- the original text, never modified
+  |
+  |  (2) split into paragraphs, each paragraph's start offset remembered
+  v
+"Around 2 we all met up at Victoria Park for Mei's birthday picnic..."
+  |
+  |  (3) GLiNER2 reads each paragraph
+  v
+{ name: "Mei's birthday picnic", location: "Victoria Park",
+  people: ["Tom"], time: "2",
+  confidence: 0.92, start: 409, end: 430 }
+  |                              \________________/
+  |                               character positions, remapped
+  |                               from paragraph to whole note
+  |
+  |  (4) post-pass: drop low confidence, remove duplicates,
+  |      normalise names ("Mei's" -> "Mei")
+  v
+Proposal rows   status = "pending"   <-- nothing committed yet
+  |
+  |  (5) review: approve or reject
+  v
 Person and Event rows, linked to each other and back to the Note
 ```
 
@@ -50,10 +54,10 @@ Person and Event rows, linked to each other and back to the Note
 
 | File | Role |
 |---|---|
-| `schema.surql` | Defines the four tables in the database itself: `Note`, `Person`, `Event`, `Proposal`. Types and constraints are enforced by SurrealDB, not by Python |
-| `distill.py` | **The extractor.** Steps 2–4 above: chunk, run GLiNER2, clean up, write Proposals |
+| `schema.surql` | Defines four tables in the database itself: `Note`, `Person`, `Event`, `Proposal`. Types and constraints are enforced by SurrealDB, not by Python |
+| `distill.py` | **The extractor.** Steps 2-4: chunk, run GLiNER2, clean up, write Proposals |
 | `review.py` | Step 5. Turns approved Proposals into real `Person`/`Event` rows and resolves the links between them |
-| `run_demo.py` | Runs the whole thing top to bottom and prints each stage |
+| `run_demo.py` | Runs the whole thing top to bottom, printing each stage |
 | `test_harness.py` | 19 automated checks |
 | `export_output.py` | Dumps one run to `output.json` for inspection |
 | `determinism_check.py` | Measures whether the model gives the same answer twice |
@@ -61,31 +65,31 @@ Person and Event rows, linked to each other and back to the Note
 ### Three ideas worth understanding
 
 **1. Nothing is trusted until reviewed.** `distill.py` never writes a `Person` or an `Event`.
-It only ever writes `Proposal` rows marked `pending`. A separate approval step promotes them.
-So a bad extraction is a queue item you can reject, never silent corruption of your data.
+It only writes `Proposal` rows marked `pending`; a separate approval step promotes them. A bad
+extraction is therefore a queue item you can reject, never silent corruption of your data.
 
 **2. Every extracted value carries its receipt.** GLiNER2 reports *character positions*, not
-just text. `"Mei's birthday picnic"` comes with `start: 409, end: 430`, meaning "characters
-409–430 of the note". Since paragraphs are extracted separately, those positions are remapped
-back onto the whole note. This is what makes click-to-highlight possible in a future UI — and
-it is also the thing that cannot be faked, which is why the verification below leans on it.
+just text. `"Mei's birthday picnic"` arrives with `start: 409, end: 430` - characters 409 to 430
+of the note. Because paragraphs are extracted separately, those positions are remapped back onto
+the whole note. This is what would make click-to-highlight possible in a UI, and it is the thing
+that cannot be faked, which is why the verification below leans on it.
 
-**3. Links are real, not strings.** `Event.people` is not `["Tom", "Mum"]`. It holds
-*references* to rows in the `Person` table, so the database can follow them. That is what makes
-this a knowledge graph rather than a spreadsheet.
+**3. Links are real, not strings.** `Event.people` is not `["Tom", "Mum"]`. It holds *references*
+to rows in the `Person` table, which the database can follow. That is what makes this a knowledge
+graph rather than a spreadsheet.
 
 ### The one known flaw
 
 GLiNER2's structured extraction is **not reproducible across runs**. Identical input, run twice,
-can yield a different number of objects — `thesis defence` and `climbing` appear in some runs and
-not others. High-confidence items (>0.9) are stable. See [findings.md](findings.md) for the
-measurements. **So the event count varies between runs. That is expected, not a broken install.**
+can yield a different number of objects: `thesis defence` and `climbing` appear in some runs and
+not others. Items above 0.9 confidence are stable. Measurements in [findings.md](findings.md).
+**So the event count varies between runs. That is expected, not a broken install.**
 
 ---
 
-## Part 2 — Verify it yourself
+## Part 2 - Verify it yourself
 
-The steps are ordered so each one trusts less of my code than the one before.
+Ordered so each step trusts less of my code than the one before.
 
 ### 0. Start the database
 
@@ -96,7 +100,7 @@ surreal start --user root --pass root --bind 127.0.0.1:8000 "rocksdb:$(pwd)/expe
 Leave it running in its own terminal. If `surreal` is not on PATH, use the full winget path:
 `"$env:LOCALAPPDATA\Microsoft\WinGet\Packages\SurrealDB.SurrealDB_Microsoft.Winget.Source_8wekyb3d8bbwe\surreal.exe"`
 
-The absolute `$(pwd)` matters — with a relative path the database lands wherever the server
+The absolute `$(pwd)` matters: with a relative path the database lands wherever the server
 happened to start, leaving a stray `.data/` in the repo root.
 
 **If it exits immediately** with `Only one usage of each socket address ... (os error 10048)`,
@@ -120,10 +124,10 @@ uv run --with "gliner2[local]" --with surrealdb python experiments/distill-harne
 ```
 
 Seven numbered stages, ending with `Person` and `Event` objects read back out of the database.
-Expect 5 people and 4–5 events (see the known flaw above).
+Expect 5 people and 4-5 events (see the known flaw above).
 
-`uv run` builds a temporary Python environment, installs `gliner2` (with `[local]`, which pulls
-in PyTorch so the model runs on your machine) plus the SurrealDB driver, runs the script, and
+`uv run` builds a temporary Python environment, installs `gliner2` (the `[local]` extra pulls in
+PyTorch so the model runs on your machine) plus the SurrealDB driver, runs the script, then
 discards the environment. Nothing is installed into the project.
 
 This step still trusts my Python. The rest do not.
@@ -132,7 +136,7 @@ This step still trusts my Python. The rest do not.
 
 > **Order matters.** `run_demo.py` and the test suite both wipe the database on start. Run
 > `run_demo.py` immediately before querying. If you run the tests in between you will see
-> `count: 0` and pending proposals — that is the test fixture, not a failure.
+> `count: 0` and pending proposals - that is the test fixture, not a failure.
 
 ```powershell
 curl.exe -s -X POST http://127.0.0.1:8000/sql -u root:root -H "surreal-ns: parallax" -H "surreal-db: harness" -H "Accept: application/json" -d "SELECT name, location, people.*.name AS attendees FROM Event ORDER BY name;"
@@ -150,9 +154,9 @@ Actual response:
 ],"status":"OK","time":"846.8µs"}]
 ```
 
-`people.*.name` means "follow every link in `people` and fetch the `name` from the row at the
-other end". The database is doing that traversal — my code is not running. If distillation had
-not really written linked objects, this returns `[]`.
+`people.*.name` means "follow every link in `people` and fetch `name` from the row at the other
+end". The database performs that traversal; my code is not running. If distillation had not
+really written linked objects, this returns `[]`.
 
 ### 3. Run the tests
 
@@ -160,12 +164,12 @@ not really written linked objects, this returns `[]`.
 uv run --with "gliner2[local]" --with surrealdb --with pytest python -m pytest experiments/distill-harness/test_harness.py -v
 ```
 
-Expect `19 passed`, roughly 40–80 seconds.
+Expect `19 passed`, roughly 40-80 seconds.
 
 ### 4. Confirm the tests can actually fail
 
 A green suite proves nothing if the assertions have no teeth. Break the offset remapping on
-purpose — line 113 of `experiments/distill-harness/distill.py`, inside `extract_events`:
+purpose - line 113 of `experiments/distill-harness/distill.py`, inside `extract_events`:
 
 ```python
 def glob(v):
@@ -190,108 +194,136 @@ E  AssertionError: name='Dinner' does not sit at 0:6
 
 ### 5. Confirm the model reads *your* input
 
-Edit `experiments/distill-harness/journal.txt` — rename Anna, or add a person — and rerun step 1.
-The output must track your edit. (`test_output_tracks_a_mutated_input` automates this, but doing
-it by hand is more convincing.)
+Edit `experiments/distill-harness/journal.txt` - rename Anna, or add a person - then rerun
+step 1. The output must track your edit. (`test_output_tracks_a_mutated_input` automates this,
+but doing it by hand is more convincing.)
 
 ---
 
-## Part 3 — Queries to try
+## Part 3 - Queries to try
 
-All verified against a fresh `run_demo.py`. To save typing, define a helper once per session:
+### PowerShell quoting: read this first
+
+It causes two confusing errors.
+
+**Use SINGLE quotes around every query.** PowerShell expands `$variables` inside double quotes,
+so `$parent` silently becomes an empty string and SurrealDB replies:
+
+```
+Parse error: Unexpected token `.`, expected an expression
+1 | SELECT name, (SELECT name FROM Event WHERE .id IN people) ...
+```
+
+Note the `.id` - the `$parent` is simply gone. Single quotes pass the text through untouched.
+Write SurrealQL string literals with double quotes inside (`class_name = "Event"`); they nest
+cleanly inside PowerShell single quotes.
+
+**A query is not a command.** Typing `SELECT ...` at the prompt makes PowerShell look for a
+program called `SELECT`, failing with `Select-Object ... ParameterBindingException`. Queries
+must be passed to `curl.exe`, or to the `Q` helper below.
+
+### The helper
+
+Paste this once per session, on its own line, at a fresh prompt:
 
 ```powershell
 function Q($sql) { curl.exe -s -X POST http://127.0.0.1:8000/sql -u root:root -H "surreal-ns: parallax" -H "surreal-db: harness" -H "Accept: application/json" -d $sql }
 ```
 
-Then `Q "SELECT * FROM Event;"` and so on.
-
-**Note:** in PowerShell, `$parent` inside a double-quoted string must be escaped as `` `$parent ``
-(PowerShell would otherwise expand it as a variable).
+Every query below is then `Q '...'`.
 
 ### What is in the vault
 
-```sql
-SELECT count() FROM Note GROUP ALL; SELECT count() FROM Person GROUP ALL; SELECT count() FROM Event GROUP ALL;
+```powershell
+Q 'SELECT count() FROM Note GROUP ALL; SELECT count() FROM Person GROUP ALL; SELECT count() FROM Event GROUP ALL;'
 ```
-→ `1` note, `5` people, `5` events.
+
+1 note, 5 people, 5 events.
 
 ### Where did I go
 
-```sql
-SELECT location, count() AS visits FROM Event WHERE location != NONE GROUP BY location;
+```powershell
+Q 'SELECT location, count() AS visits FROM Event WHERE location != NONE GROUP BY location;'
 ```
-→ Café Lumen on Bridge Street, Robinson Library, Victoria Park, home.
 
-### What did each person do — reverse graph lookup
+Café Lumen on Bridge Street, Robinson Library, Victoria Park, home.
 
-```sql
-SELECT name, (SELECT name FROM Event WHERE $parent.id IN people) AS events FROM Person ORDER BY name;
+### What did each person do - walking the graph backwards
+
+```powershell
+Q 'SELECT name, (SELECT name FROM Event WHERE $parent.id IN people) AS events FROM Person ORDER BY name;'
 ```
-→ `Anna` → breakfast + thesis defence; `Dev` → stats problem set; `Mum` → Dinner.
 
-This walks the links *backwards*, from person to events, without any join table.
+`Anna` -> thesis defence + breakfast; `Dev` -> stats problem set; `Mum` -> Dinner.
+
+Follows the links in reverse, person to events, with no join table. `$parent` refers to the
+outer row - hence the single quotes.
 
 ### Who shows up most
 
-```sql
-SELECT name, array::len((SELECT id FROM Event WHERE $parent.id IN people)) AS events FROM Person ORDER BY events DESC;
+```powershell
+Q 'SELECT name, array::len((SELECT id FROM Event WHERE $parent.id IN people)) AS events FROM Person ORDER BY events DESC;'
 ```
-→ Anna 2, everyone else 1.
+
+Anna 2, everyone else 1.
 
 ### How confident was the model
 
-```sql
-SELECT class_name, payload.name AS thing, confidence FROM Proposal ORDER BY confidence DESC LIMIT 6;
+```powershell
+Q 'SELECT class_name, payload.name AS thing, confidence FROM Proposal ORDER BY confidence DESC LIMIT 6;'
 ```
-→ `Mum` 0.992, `Anna` 0.959, `Dinner` 0.957 … Compare against the flaky ones near 0.5.
 
-### The audit trail — what was proposed, what it became
+`Mum` 0.992, `Anna` 0.959, `Dinner` 0.957 ... compare with the flaky ones near 0.5.
 
-```sql
-SELECT class_name, payload.name AS proposed, status, committed FROM Proposal WHERE class_name = 'Event';
+### The audit trail - what was proposed, and what it became
+
+```powershell
+Q 'SELECT class_name, payload.name AS proposed, status, committed FROM Proposal WHERE class_name = "Event";'
 ```
-→ each proposal, its status, and the id of the object it created.
+
+Every proposal, its status, and the id of the object it created.
 
 ### Trace an event back to the note it came from
 
-```sql
-SELECT name, source.content AS came_from FROM Event LIMIT 1;
+```powershell
+Q 'SELECT name, source.content AS came_from FROM Event LIMIT 1;'
 ```
-→ the full original journal text.
+
+The full original journal text.
 
 ### The strongest check: make the database prove provenance
 
-```sql
-SELECT payload.name AS extracted, string::slice(note.content, provenance.name.start, provenance.name.end) AS quoted_from_note FROM Proposal WHERE class_name = 'Event';
+```powershell
+Q 'SELECT payload.name AS extracted, string::slice(note.content, provenance.name.start, provenance.name.end) AS quoted_from_note FROM Proposal WHERE class_name = "Event";'
 ```
 
 Actual result:
 
 ```json
-{"extracted":"stats problem set",    "quoted_from_note":"stats problem set"},
-{"extracted":"Mei's birthday picnic","quoted_from_note":"Mei's birthday picnic"},
-{"extracted":"Dinner",               "quoted_from_note":"Dinner"},
-{"extracted":"breakfast",            "quoted_from_note":"breakfast"},
-{"extracted":"thesis defence",       "quoted_from_note":"thesis defence"}
+{"extracted":"breakfast",             "quoted_from_note":"breakfast"},
+{"extracted":"thesis defence",        "quoted_from_note":"thesis defence"},
+{"extracted":"stats problem set",     "quoted_from_note":"stats problem set"},
+{"extracted":"Mei's birthday picnic", "quoted_from_note":"Mei's birthday picnic"},
+{"extracted":"Dinner",                "quoted_from_note":"Dinner"}
 ```
 
 This is the one to keep. The database re-reads the original note at the character positions
-stored with each proposal and returns what it finds there. Both columns match on every row —
-so every extracted value really does come from that exact span of your text. No Python, no
-model, no trust required. Fabricated output could not survive this.
+stored with each proposal and returns what it finds there. Both columns match on every row, so
+every extracted value really does come from that exact span of your text. No Python, no model,
+no trust required - fabricated output could not survive it.
 
-(`string::slice(text, start, end)` — the third argument is an **end index**, not a length.)
+(`string::slice(text, start, end)` takes an **end index**, not a length. The length form
+silently returns `""` instead of erroring.)
 
 ### Prove enforcement lives in the database
 
-```sql
-CREATE Person SET name = 12345;
+```powershell
+Q 'CREATE Person SET name = 12345;'
 ```
-→ `Couldn't coerce value for field 'name' of 'Person:...': Expected 'string' but found '12345'`
 
-Rejected by SurrealDB with no Python in the loop — which is what [spec §3](../../docs/spec.md)'s
-"smart database, dumb client" means in practice.
+Returns `Couldn't coerce value for field 'name' of 'Person:...': Expected 'string' but found
+'12345'` - rejected by SurrealDB with no Python in the loop. That is
+[spec section 3](../../docs/spec.md)'s "smart database, dumb client" in practice.
 
 ---
 
