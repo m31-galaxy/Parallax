@@ -27,51 +27,58 @@ every `Event.source` points back to its originating `Note`.
 **19/19 tests pass** (`test_harness.py`), covering provenance, mutation-tracking, chunking,
 post-pass, review-before-commit, entity-resolution idempotency, and DB-level schema enforcement.
 
-## The significant finding: GLiNER2 is NOT deterministic
+## The significant finding: GLiNER2 structured extraction is NOT deterministic
 
-The sponsor analysis lists GLiNER2 as *"Deterministic: Yes"* (encoder, not generative), and the
-smoke-test write-up repeated that. **It is false for the structured-extraction task.**
-
-Same 842-char input (SHA-verified identical), two separate processes:
+Measured properly in [determinism_check.py](determinism_check.py): 6 trials, each a **fresh
+process** reloading the weights, identical SHA-verified input, torch pinned with
+`manual_seed(0)`, `set_num_threads(1)`, `use_deterministic_algorithms(True)`. Full transcript in
+[determinism_log.txt](determinism_log.txt), raw per-trial data in [determinism.json](determinism.json).
 
 ```
-run 1: breakfast 0.9199 · thesis defence 0.7713 · stats problem set 0.6088 · stats problem set 0.6632
-       · Mei's birthday picnic 0.9232 · climbing 0.5150 · Dinner 0.9608
-run 2: breakfast 0.9204 · breakfast 0.5225 · stats problem set 0.5668 · stats problem set 0.6526
-       · Mei's birthday picnic 0.9154 ·                    · Dinner 0.9611
+structured extraction : 6 distinct results in 6 trials -> NOT DETERMINISTIC
+   ignoring scores    : 3 distinct object sets -> the SET of objects changes
+entity extraction     : 1 distinct result  in 6 trials -> DETERMINISTIC (bit-for-bit)
+
+per-object stability (appearances/trials):
+  6/6  stable    conf 0.915-0.927   Mei's birthday picnic
+  6/6  stable    conf 0.951-0.961   Dinner
+  6/6  stable    conf 0.501-0.932   breakfast
+  6/6  stable    conf 0.567-0.691   stats problem set
+  4/6  FLICKERS  conf 0.792-0.812   thesis defence
+  3/6  FLICKERS  conf 0.505-0.513   climbing
+  1/6  FLICKERS  conf 0.525         Saturday 22 August   (the header artefact)
 ```
 
-`climbing` and `thesis defence` appear in one run and vanish in the next. This persists with
-`torch.set_num_threads(1)`, `torch.manual_seed(0)`, and `torch.use_deterministic_algorithms(True)`
-— so it is not thread scheduling or an unseeded RNG. The likely cause is the variable-length
-object-counting head (`count_lstm_v2` in the model config), which decides *how many* objects to
-emit; small float variation near a decision boundary changes the object count.
+Key refinements over the first observation:
 
-**The structure of the instability matters:**
-
-| Band | Behaviour |
-|---|---|
-| **> 0.9** (breakfast, picnic, Dinner) | Stable across every run; confidences vary only in the 3rd decimal |
-| **0.5 – 0.7** (climbing, thesis defence, duplicate breakfast) | Flickers in and out between runs |
-
-So the *high-confidence core is reliable*; the tail is not. `CONF_FLOOR = 0.60` sits directly in
-the unstable band, which is why the demo run committed `thesis defence` (0.79 that run) while a
-later run scored it 0.51 and dropped it. Entity extraction (task 1 in the smoke test) was stable
-across every run observed; this affects structured extraction specifically.
+1. **The instability is in the object count, not the scores.** Confidences drift only in the
+   third decimal within a trial set; what changes is *whether an object is emitted at all*.
+   This points at the variable-length counting head (`count_lstm_v2`), which decides how many
+   objects each paragraph yields, flipping near a boundary. Within one process the count is
+   stable; across weight reloads it is not - suggesting load-order/memory-layout sensitivity
+   in float accumulation rather than RNG (which was pinned).
+2. **Flicker is not confined below 0.7:** `thesis defence` scores ~0.80 in the trials where it
+   appears at all, and still vanished in 2 of 6. A confidence threshold therefore cannot fully
+   de-flake structured output - presence itself is unstable.
+3. **Entity extraction is genuinely deterministic** - all 15 spans byte-identical across all 6
+   fresh processes. The claim in the sponsor analysis is true for NER and false for structured
+   extraction.
+4. **Duplicates are systematic, not random:** `stats problem set` appears twice in every single
+   trial (same span, different confidences), so the post-pass dedup is load-bearing, not
+   defensive.
 
 ### Consequences
 
-1. **`test_extraction_is_deterministic` only holds within a single process.** It passes because
-   the model is loaded once per session. Cross-process, it would fail. The test is honest about
-   its scope but the property is weaker than advertised.
-2. **A confidence threshold is the wrong sole filter** when the threshold sits in the unstable
-   band. Options: raise the floor to ~0.85 (loses real events), or run N passes and keep objects
-   appearing in a majority (costs N× latency, ~3 s per pass).
-3. **This strengthens the case for fine-tuning.** Tightening the confidence distribution — pushing
-   real events above the noise band — is exactly what training on in-domain examples does, and it
-   gives the Pioneer eval a concrete, measurable target beyond raw accuracy: *run-to-run stability*.
-4. **It does not undermine the architecture.** Proposals go through review before commit (spec §6),
-   so an unstable tail surfaces as a review-queue item, never as silent corruption of user data.
+1. **A confidence threshold is not a sufficient filter** - presence flickers at ~0.8. If stable
+   output matters, options are: majority-vote over N runs (N× latency), entity-first pipelines
+   (use the deterministic NER head and assemble objects in code), or fine-tuning to push
+   in-domain objects deep into the stable band.
+2. **Reproducibility claims must be scoped:** within-process caching is safe; cross-process
+   caching by content hash is not.
+3. **This strengthens the fine-tuning case** and gives the Pioneer eval a second measurable
+   axis: run-to-run stability, not just accuracy.
+4. **The architecture absorbs it:** proposals pass through review before commit (spec §6), so
+   an unstable tail is a review-queue artefact, never silent data corruption.
 
 ## Other observations
 

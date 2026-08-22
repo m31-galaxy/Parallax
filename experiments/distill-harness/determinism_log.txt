@@ -1,0 +1,96 @@
+GLiNER2 cross-process determinism check
+model   : fastino/gliner2-base-v1
+trials  : 6 (each a fresh subprocess, weights reloaded)
+controls: torch.manual_seed(0), set_num_threads(1), use_deterministic_algorithms(True)
+==============================================================================
+INPUT (journal.txt, verbatim):
+------------------------------------------------------------------------------
+| Saturday 22 August
+| 
+| Slept in until about 9, then walked over to Café Lumen on Bridge Street for breakfast with Anna. She's stressed about her thesis defence on Thursday but seems to have it under control. Took the 11 bus to uni and spent the late morning in the Robinson Library finishing the stats problem set with Dev — he still owes me a coffee from last week.
+| 
+| Around 2 we all met up at Victoria Park for Mei's birthday picnic. Tom brought his dog, Biscuit, who stole half a sandwich. Mei's parents flew in from Singapore for it, which was a nice surprise. Left at 5 to get to the climbing gym on Eastway with Dev; managed my first V4.
+| 
+| Dinner at home with Mum, she made laksa. Watched an episode of something forgettable and crashed by 11. Need to remember: Anna's defence Thursday 2pm, Dev's coffee, and book the dentist for next week.
+------------------------------------------------------------------------------
+
+trial 1  input sha=76b87202a149f9dc  torch=2.13.0+cpu
+  structured  sig=4f9c7529a2b9  (6 objects)
+      0.928767  'breakfast'  loc='Café Lumen on Bridge Street'
+      0.500501  'breakfast'  loc=None
+      0.603215  'stats problem set'  loc='Robinson Library'
+      0.674131  'stats problem set'  loc='Robinson Library'
+      0.921851  "Mei's birthday picnic"  loc='Victoria Park'
+      0.956555  'Dinner'  loc='home'
+  entities    sig=843d421df5c9  (15 spans)
+
+trial 2  input sha=76b87202a149f9dc  torch=2.13.0+cpu
+  structured  sig=cb2a95d4ae7e  (6 objects)
+      0.920359  'breakfast'  loc='Café Lumen on Bridge Street'
+      0.522473  'breakfast'  loc=None
+      0.566778  'stats problem set'  loc='Robinson Library'
+      0.652620  'stats problem set'  loc='Robinson Library'
+      0.915428  "Mei's birthday picnic"  loc='Victoria Park'
+      0.961084  'Dinner'  loc='home'
+  entities    sig=843d421df5c9  (15 spans)
+
+trial 3  input sha=76b87202a149f9dc  torch=2.13.0+cpu
+  structured  sig=fa574d62b879  (7 objects)
+      0.525402  'Saturday 22 August'  loc=None
+      0.922404  'breakfast'  loc='Café Lumen on Bridge Street'
+      0.792137  'thesis defence'  loc=None
+      0.629956  'stats problem set'  loc='Robinson Library'
+      0.683120  'stats problem set'  loc='Robinson Library'
+      0.927228  "Mei's birthday picnic"  loc='Victoria Park'
+      0.955336  'Dinner'  loc='home'
+  entities    sig=843d421df5c9  (15 spans)
+
+trial 4  input sha=76b87202a149f9dc  torch=2.13.0+cpu
+  structured  sig=570317c776c6  (7 objects)
+      0.931092  'breakfast'  loc='Café Lumen on Bridge Street'
+      0.802320  'thesis defence'  loc=None
+      0.669392  'stats problem set'  loc='Robinson Library'
+      0.690507  'stats problem set'  loc='Robinson Library'
+      0.918420  "Mei's birthday picnic"  loc='Victoria Park'
+      0.506464  'climbing'  loc='climbing gym on Eastway'
+      0.954379  'Dinner'  loc='home'
+  entities    sig=843d421df5c9  (15 spans)
+
+trial 5  input sha=76b87202a149f9dc  torch=2.13.0+cpu
+  structured  sig=5e7a16e00d63  (7 objects)
+      0.931609  'breakfast'  loc='Café Lumen on Bridge Street'
+      0.811626  'thesis defence'  loc=None
+      0.667982  'stats problem set'  loc='Robinson Library'
+      0.681505  'stats problem set'  loc='Robinson Library'
+      0.920670  "Mei's birthday picnic"  loc='Victoria Park'
+      0.505124  'climbing'  loc='climbing gym on Eastway'
+      0.953122  'Dinner'  loc='home'
+  entities    sig=843d421df5c9  (15 spans)
+
+trial 6  input sha=76b87202a149f9dc  torch=2.13.0+cpu
+  structured  sig=e7122210093d  (7 objects)
+      0.924997  'breakfast'  loc='Café Lumen on Bridge Street'
+      0.805063  'thesis defence'  loc=None
+      0.649937  'stats problem set'  loc='Robinson Library'
+      0.688279  'stats problem set'  loc='Robinson Library'
+      0.916990  "Mei's birthday picnic"  loc='Victoria Park'
+      0.513441  'climbing'  loc='climbing gym on Eastway'
+      0.950590  'Dinner'  loc='home'
+  entities    sig=843d421df5c9  (15 spans)
+
+==============================================================================
+VERDICT
+==============================================================================
+input identical across trials : True  {'76b87202a149f9dc'}
+structured extraction  : 6 distinct results in 6 trials -> NOT DETERMINISTIC
+   ...ignoring scores  : 3 distinct object sets -> THE SET OF OBJECTS CHANGES
+entity extraction      : 1 distinct results in 6 trials -> DETERMINISTIC
+
+per-object stability (appearances / trials):
+  6/6  stable    conf 0.915-0.927    "Mei's birthday picnic"
+  6/6  stable    conf 0.567-0.691    'stats problem set'
+  6/6  stable    conf 0.951-0.961    'Dinner'
+  6/6  stable    conf 0.501-0.932    'breakfast'
+  4/6  FLICKERS  conf 0.792-0.812    'thesis defence'
+  3/6  FLICKERS  conf 0.505-0.513    'climbing'
+  1/6  FLICKERS  conf 0.525-0.525    'Saturday 22 August'
