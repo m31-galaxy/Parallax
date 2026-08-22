@@ -186,6 +186,30 @@ export async function addField(db: Surreal, className: string, field: NewField):
     });
 }
 
+/** Remove a field definition and purge its stored values from all objects. */
+export async function removeField(
+    db: Surreal,
+    className: string,
+    fieldName: string
+): Promise<void> {
+    const statements = [
+        `REMOVE FIELD ${escapeIdent(fieldName)} ON ${escapeIdent(className)}`,
+        // Stored values survive REMOVE FIELD (verified against SurrealDB 3.2);
+        // purge them so no hidden data lingers in the records.
+        `UPDATE ${escapeIdent(className)} SET ${escapeIdent(fieldName)} = NONE`,
+        ENSURE_META,
+        `UPSERT ${META_TABLE}:${escapeIdPart(className)} SET table_name = $name, plural = plural OR $name, fields = array::filter(fields OR [], |$f| $f.name != $field)`
+    ];
+    await db.query(statements.join(';\n'), { name: className, field: fieldName });
+}
+
+/** Remove the class's table — destroying all its objects — and its meta record. */
+export async function deleteClass(db: Surreal, className: string): Promise<void> {
+    await db.query(
+        `REMOVE TABLE ${escapeIdent(className)};\nDELETE ${META_TABLE}:${escapeIdPart(className)}`
+    );
+}
+
 export async function updatePlural(db: Surreal, className: string, plural: string): Promise<void> {
     await db.query(
         `${ENSURE_META};\nUPSERT ${META_TABLE}:${escapeIdPart(className)} SET table_name = $name, plural = $plural, fields = fields OR []`,

@@ -71,8 +71,12 @@
 - [ ] **More field types** (deferred from v0.1 class designer, spec §4):
       references (`record<Class>`), select/enum (string + `ASSERT ... INSIDE`),
       lists (`array<T>`).
-- [ ] **Destructive schema operations**: remove fields, delete classes, rename
-      classes/fields — need confirmations and a data-migration story.
+- [x] **Destructive schema operations — deletes**: field removal (two-step
+      confirm, stored values purged) and class deletion (typed-name confirm)
+      shipped 2026-08-22 (spec §4).
+- [ ] **Schema renames** (classes and fields): SurrealDB has no native rename,
+      so these need a copy-migration design — id remapping for class renames,
+      reference integrity once record links exist.
 - [ ] **Record-access authentication** (SurrealDB access methods) — end-user
       style auth, deferred from the v0.1 connect flow (spec §8).
 - [ ] **In-app user management** — UI for `DEFINE USER ... ON DATABASE ROLES ...`

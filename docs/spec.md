@@ -109,9 +109,13 @@ Terminology borrows deliberately from OOP:
   back via `INFO`, never cached as authority. The **`parallax_class`** meta
   table (one record per class, id = class name) stores `plural`, and an
   ordered `fields` array of `{name, ui_type}` hints.
-- **Class designer scope (v0.1): create + extend.** Create classes, add fields,
-  edit the plural name. No field removal, class deletion, or renames yet —
-  destructive schema operations are backlog ([todo.md](todo.md)).
+- **Class designer scope: create, extend, delete.** Create classes, add
+  fields, edit the plural name; **remove fields** (two-step armed confirm —
+  the field's stored values are explicitly purged, since SurrealDB retains
+  them past `REMOVE FIELD`); **delete classes** (typed-name confirm in a
+  danger zone — `REMOVE TABLE` destroys all objects, and the meta record is
+  cleaned up). **Renames remain backlog**: SurrealDB has no native rename, so
+  they need a copy-migration design ([todo.md](todo.md)).
 - **Object CRUD (v0.1):** the class page is **objects-first** — a table of all
   fields with New/Edit/Delete (delete behind an inline two-step confirm —
   never `window.confirm`, which embedded browsers suppress silently) — with the schema

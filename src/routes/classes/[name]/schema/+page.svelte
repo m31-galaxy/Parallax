@@ -1,12 +1,16 @@
 <script lang="ts">
     import { page } from '$app/state';
+    import { goto } from '$app/navigation';
+    import { resolve } from '$app/paths';
     import {
         addField,
         classStore,
+        deleteClass,
         FIELD_TYPE_LABELS,
         FIELD_TYPES,
         getClass,
         isValidFieldName,
+        removeField,
         updatePlural,
         type ClassView,
         type NewField
@@ -89,6 +93,50 @@
             busy = false;
         }
     }
+
+    // Two-step confirm for field removal (destroys that field's data).
+    let confirmingRemove = $state<string | null>(null);
+
+    function requestRemoveField(fieldName: string): void {
+        if (confirmingRemove !== fieldName) {
+            confirmingRemove = fieldName;
+            return;
+        }
+        confirmingRemove = null;
+        void doRemoveField(fieldName);
+    }
+
+    async function doRemoveField(fieldName: string): Promise<void> {
+        busy = true;
+        actionError = null;
+        try {
+            await removeField(connection.client, className, fieldName);
+            await load(className);
+            await classStore.refresh();
+        } catch (err) {
+            actionError = toMessage(err);
+        } finally {
+            busy = false;
+        }
+    }
+
+    // Typed-name confirm for class deletion (destroys all objects, spec §4).
+    let deleteConfirmName = $state('');
+
+    async function doDeleteClass(): Promise<void> {
+        if (deleteConfirmName !== className) return;
+        busy = true;
+        actionError = null;
+        try {
+            await deleteClass(connection.client, className);
+            await classStore.refresh();
+            await goto(resolve('/'));
+        } catch (err) {
+            actionError = toMessage(err);
+        } finally {
+            busy = false;
+        }
+    }
 </script>
 
 <main>
@@ -123,6 +171,7 @@
                         <th>Name</th>
                         <th>Type</th>
                         <th>Required</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -135,6 +184,16 @@
                                     : `unsupported (${field.surrealType})`}
                             </td>
                             <td>{field.required ? 'yes' : 'no'}</td>
+                            <td>
+                                <button
+                                    class="row-button"
+                                    class:danger={confirmingRemove === field.name}
+                                    disabled={busy}
+                                    onclick={() => requestRemoveField(field.name)}
+                                >
+                                    {confirmingRemove === field.name ? 'Really remove?' : 'Remove'}
+                                </button>
+                            </td>
                         </tr>
                     {/each}
                 </tbody>
@@ -172,6 +231,32 @@
         {#if actionError !== null}
             <p class="error">{actionError}</p>
         {/if}
+
+        <section class="danger-zone">
+            <h2>Danger zone</h2>
+            <p class="muted">
+                Deleting this class permanently destroys the class and all its objects.
+            </p>
+            <form
+                onsubmit={(event) => {
+                    event.preventDefault();
+                    void doDeleteClass();
+                }}
+            >
+                <input
+                    bind:value={deleteConfirmName}
+                    placeholder={`Type ${className} to confirm`}
+                    aria-label="Type the class name to confirm deletion"
+                />
+                <button
+                    type="submit"
+                    class="danger"
+                    disabled={busy || deleteConfirmName !== className}
+                >
+                    Delete class
+                </button>
+            </form>
+        </section>
     {/if}
 </main>
 
@@ -268,6 +353,42 @@
     button:disabled {
         opacity: 0.5;
         cursor: default;
+    }
+
+    button.row-button {
+        font-size: 0.85rem;
+        padding: 0.15rem 0.5rem;
+        white-space: nowrap;
+    }
+
+    button.danger {
+        color: #b3261e;
+        border-color: #d9a5a1;
+    }
+
+    .danger-zone {
+        margin-top: 1rem;
+        border: 1px solid #d9a5a1;
+        border-radius: 6px;
+        padding: 0.75rem 1rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        background: #fff;
+    }
+
+    .danger-zone h2 {
+        margin: 0;
+    }
+
+    .danger-zone form {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .danger-zone input {
+        flex: 1;
+        max-width: 16rem;
     }
 
     .error {
