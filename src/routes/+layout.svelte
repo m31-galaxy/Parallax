@@ -73,11 +73,12 @@
             <h2>Classes</h2>
             <ul>
                 {#each classStore.all as cls (cls.name)}
+                    {@const href = resolve('/classes/[name]', { name: cls.name })}
                     <li>
                         <a
-                            href={resolve('/classes/[name]', { name: cls.name })}
-                            aria-current={page.url.pathname ===
-                                resolve('/classes/[name]', { name: cls.name })}
+                            {href}
+                            aria-current={page.url.pathname === href ||
+                                page.url.pathname.startsWith(`${href}/`)}
                         >
                             {cls.plural}
                         </a>

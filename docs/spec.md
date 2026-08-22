@@ -112,6 +112,15 @@ Terminology borrows deliberately from OOP:
 - **Class designer scope (v0.1): create + extend.** Create classes, add fields,
   edit the plural name. No field removal, class deletion, or renames yet —
   destructive schema operations are backlog ([todo.md](todo.md)).
+- **Object CRUD (v0.1):** the class page is **objects-first** — a table of all
+  fields with New/Edit/Delete (delete behind a confirm) — with the schema
+  designer on a secondary **Schema** tab. Forms are generated from the live
+  schema: text → input, long text → textarea, number → number input,
+  boolean → checkbox (required) or yes/no/— select (optional, preserving
+  unset), datetime → `datetime-local`. An empty optional input means _unset_
+  (NONE); an empty required input is submitted as missing so the database
+  rejects it with its own error. Fields whose types fall outside the v0.1 set
+  are displayed read-only and excluded from forms.
 - The naming convention is **enforced as validation in the class designer**
   (PascalCase class names, snake_case field names, `id` reserved) — it governs
   user-defined database schema, not TypeScript identifiers, so it is not a
@@ -291,6 +300,8 @@ Details and status tracked in [todo.md](todo.md):
 | 2026-08-22 | Class designer scope v0.1: create + extend (add fields, edit plural); destructive schema ops deferred (§4)                                                                                                                                                      |
 | 2026-08-22 | Naming convention enforced as class-designer validation, deliberately not a lint rule (§4)                                                                                                                                                                      |
 | 2026-08-22 | App shell: persistent sidebar listing classes by plural name; main area hosts the selected view (§7)                                                                                                                                                            |
+| 2026-08-22 | Class page is objects-first with the designer on a secondary "Schema" tab (§4)                                                                                                                                                                                  |
+| 2026-08-22 | Object CRUD v0.1: schema-driven forms with typed widgets; delete behind a confirm; empty optional inputs = unset; unsupported field types read-only (§4)                                                                                                        |
 
 ## 12. Open questions
 

@@ -31,7 +31,8 @@
 - [x] Class designer: create + extend classes (singular/plural names, core-scalar
       fields, required toggle), SCHEMAFULL tables + `parallax_class` meta table,
       sidebar app shell, naming validation (2026-08-22; spec §4)
-- [ ] Object CRUD: schema-driven form UI for creating/editing objects
+- [x] Object CRUD: objects-first class page (list/create/edit/delete) with
+      schema-driven forms; designer moved to a Schema tab (2026-08-22; spec §4)
 - [ ] Note capture: built-in Note class + capture UI
 
 ## v0.2 — Distillation
@@ -41,6 +42,13 @@
 - [ ] After v1 ships: experiment with alternative trigger/commit models
       (auto-trigger on save, proposal inbox, auto-commit with revert) and revisit
       the spec decision.
+
+## Known issues / polish
+
+- [ ] Datetime fields lose sub-minute precision on edit: the `datetime-local`
+      input is minute-granular, so re-saving a record truncates seconds
+      (observed 2026-08-22). Decide a precision story (seconds step, or
+      preserve original value when unchanged).
 
 ## Future features
 

@@ -1,27 +1,24 @@
 <script lang="ts">
+    import { resolve } from '$app/paths';
     import { page } from '$app/state';
-    import {
-        addField,
-        classStore,
-        FIELD_TYPE_LABELS,
-        FIELD_TYPES,
-        getClass,
-        isValidFieldName,
-        updatePlural,
-        type ClassView,
-        type NewField
-    } from '$lib/db/classes.svelte';
+    import { classStore, getClass, type ClassView } from '$lib/db/classes.svelte';
     import { connection } from '$lib/db/connection.svelte';
+    import {
+        deleteObject,
+        formatValue,
+        listObjects,
+        objectId,
+        type ObjectRecord
+    } from '$lib/db/objects';
 
     let cls = $state<ClassView | null>(null);
+    let objects = $state<ObjectRecord[] | null>(null);
     let loadError = $state<string | null>(null);
-    let busy = $state(false);
     let actionError = $state<string | null>(null);
-
-    let pluralDraft = $state('');
-    let newField = $state<NewField>({ name: '', type: 'text', required: false });
+    let busy = $state(false);
 
     const className = $derived(page.params.name ?? '');
+    const singular = $derived(classStore.all.find((c) => c.name === className)?.name ?? className);
 
     $effect(() => {
         void load(className);
@@ -33,45 +30,24 @@
 
     async function load(name: string): Promise<void> {
         cls = null;
+        objects = null;
         loadError = null;
         actionError = null;
         try {
-            const view = await getClass(connection.client, name);
-            cls = view;
-            pluralDraft = view.plural;
+            cls = await getClass(connection.client, name);
+            objects = await listObjects(connection.client, name);
         } catch (err) {
             loadError = toMessage(err);
         }
     }
 
-    const fieldNameInvalid = $derived(
-        newField.name !== '' &&
-            (!isValidFieldName(newField.name) ||
-                (cls?.fields.some((f) => f.name === newField.name) ?? false))
-    );
-
-    async function submitField(): Promise<void> {
+    async function remove(record: ObjectRecord): Promise<void> {
+        if (!window.confirm(`Delete ${String(record.id)}? This cannot be undone.`)) return;
         busy = true;
         actionError = null;
         try {
-            await addField(connection.client, className, newField);
-            newField = { name: '', type: 'text', required: false };
+            await deleteObject(connection.client, className, objectId(record));
             await load(className);
-            await classStore.refresh();
-        } catch (err) {
-            actionError = toMessage(err);
-        } finally {
-            busy = false;
-        }
-    }
-
-    async function savePlural(): Promise<void> {
-        busy = true;
-        actionError = null;
-        try {
-            await updatePlural(connection.client, className, pluralDraft.trim());
-            await load(className);
-            await classStore.refresh();
         } catch (err) {
             actionError = toMessage(err);
         } finally {
@@ -82,84 +58,53 @@
 
 <main>
     {#if loadError !== null}
-        <h1>{className}</h1>
         <p class="error">{loadError}</p>
-    {:else if cls === null}
+    {:else if cls === null || objects === null}
         <p class="muted">Loading…</p>
     {:else}
-        <h1>{cls.name}</h1>
-        <form
-            class="plural"
-            onsubmit={(event) => {
-                event.preventDefault();
-                void savePlural();
-            }}
-        >
-            <label>
-                Plural name
-                <input bind:value={pluralDraft} required />
-            </label>
-            <button type="submit" disabled={busy || pluralDraft.trim() === cls.plural}>
-                Save
-            </button>
-        </form>
+        <a class="button" href={resolve('/classes/[name]/new', { name: className })}>
+            New {singular}
+        </a>
 
-        <h2>Fields</h2>
-        {#if cls.fields.length === 0}
-            <p class="muted">No fields yet.</p>
+        {#if objects.length === 0}
+            <p class="muted">No {cls.plural.toLowerCase()} yet.</p>
         {:else}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Required</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each cls.fields as field (field.name)}
+            <div class="table-wrap">
+                <table>
+                    <thead>
                         <tr>
-                            <td><code>{field.name}</code></td>
-                            <td>
-                                {field.uiType
-                                    ? FIELD_TYPE_LABELS[field.uiType]
-                                    : `unsupported (${field.surrealType})`}
-                            </td>
-                            <td>{field.required ? 'yes' : 'no'}</td>
+                            {#each cls.fields as field (field.name)}
+                                <th>{field.name}</th>
+                            {/each}
+                            <th></th>
                         </tr>
-                    {/each}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {#each objects as record (String(record.id))}
+                            <tr>
+                                {#each cls.fields as field (field.name)}
+                                    <td>{formatValue(record[field.name])}</td>
+                                {/each}
+                                <td class="row-actions">
+                                    <a
+                                        href={resolve('/classes/[name]/[id]', {
+                                            name: className,
+                                            id: objectId(record)
+                                        })}
+                                    >
+                                        Edit
+                                    </a>
+                                    <button disabled={busy} onclick={() => void remove(record)}>
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
         {/if}
 
-        <form
-            class="add-field"
-            onsubmit={(event) => {
-                event.preventDefault();
-                void submitField();
-            }}
-        >
-            <input
-                bind:value={newField.name}
-                placeholder="field_name"
-                aria-label="New field name"
-            />
-            <select bind:value={newField.type} aria-label="New field type">
-                {#each FIELD_TYPES as type (type)}
-                    <option value={type}>{FIELD_TYPE_LABELS[type]}</option>
-                {/each}
-            </select>
-            <label class="required">
-                <input type="checkbox" bind:checked={newField.required} />
-                required
-            </label>
-            <button type="submit" disabled={busy || newField.name === '' || fieldNameInvalid}>
-                Add field
-            </button>
-        </form>
-        {#if fieldNameInvalid}
-            <p class="error">Field name must be snake_case, not "id", and not already in use.</p>
-        {/if}
         {#if actionError !== null}
             <p class="error">{actionError}</p>
         {/if}
@@ -168,45 +113,36 @@
 
 <style>
     main {
-        max-width: 40rem;
-        padding: 2rem 1.5rem;
         display: flex;
         flex-direction: column;
         gap: 1rem;
-    }
-
-    h1 {
-        margin: 0;
-        font-size: 1.4rem;
-    }
-
-    h2 {
-        margin: 0.5rem 0 0;
-        font-size: 1rem;
+        align-items: flex-start;
     }
 
     .muted {
         color: #666;
     }
 
-    .plural {
-        display: flex;
-        align-items: flex-end;
-        gap: 0.5rem;
+    .button {
+        display: inline-block;
+        font-size: 0.9rem;
+        padding: 0.4rem 0.8rem;
+        border: 1px solid #bbb;
+        border-radius: 4px;
+        background: #fff;
+        color: inherit;
+        text-decoration: none;
     }
 
-    label {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        font-size: 0.9rem;
+    .table-wrap {
+        max-width: 100%;
+        overflow-x: auto;
     }
 
     table {
         border-collapse: collapse;
         background: #fff;
         border: 1px solid #ddd;
-        border-radius: 6px;
     }
 
     th,
@@ -215,6 +151,7 @@
         padding: 0.45rem 0.75rem;
         border-bottom: 1px solid #eee;
         font-size: 0.95rem;
+        white-space: nowrap;
     }
 
     th {
@@ -222,49 +159,31 @@
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: #666;
+        font-family: monospace;
     }
 
     tbody tr:last-child td {
         border-bottom: none;
     }
 
-    .add-field {
+    .row-actions {
         display: flex;
         gap: 0.5rem;
         align-items: center;
     }
 
-    .add-field input:not([type='checkbox']) {
-        flex: 1;
+    .row-actions a {
+        color: #555;
     }
 
-    label.required {
-        flex-direction: row;
-        align-items: center;
-        gap: 0.3rem;
-        white-space: nowrap;
-    }
-
-    input,
-    select {
+    .row-actions button {
         font: inherit;
-        padding: 0.4rem 0.5rem;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-
-    button {
-        font: inherit;
-        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+        padding: 0.15rem 0.5rem;
         border: 1px solid #bbb;
         border-radius: 4px;
         background: #fff;
         cursor: pointer;
-    }
-
-    button:disabled {
-        opacity: 0.5;
-        cursor: default;
     }
 
     .error {
