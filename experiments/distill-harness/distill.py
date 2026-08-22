@@ -191,6 +191,14 @@ def distill_note(db, note_id, model=None, classes=None):
 
     ensure_proposal_table(db)
 
+    # Re-distilling replaces, not appends: drop this note's still-pending
+    # proposals from a previous run so repeated Distil clicks do not stack
+    # duplicates. Approved/rejected proposals stay as the audit trail.
+    db.query(
+        f"DELETE {PROPOSAL_TABLE} WHERE note = $note AND status = 'pending';",
+        {"note": note_id},
+    )
+
     proposals = []
     for row in post_pass(extract_from_note(model, content, classes)):
         created = db.query(
