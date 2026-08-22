@@ -11,7 +11,7 @@
 
 import { RecordId, Table } from 'surrealdb';
 import type { DateTime, Surreal } from 'surrealdb';
-import { ENSURE_META, META_TABLE } from './classes.svelte';
+import { ENSURE_META, META_TABLE } from './classes';
 
 export const NOTE_CLASS = 'Note';
 

@@ -8,6 +8,7 @@
 
 import { Surreal } from 'surrealdb';
 import type { SystemAuth } from 'surrealdb';
+import { systemAuth } from './auth';
 import { profiles, type ConnectionProfile } from './profiles.svelte';
 
 export type ConnectionStatus =
@@ -27,31 +28,14 @@ function toMessage(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
 }
 
-/**
- * The credential shape *is* the auth level in the SDK: root is bare
- * username/password, namespace and database users add their containers.
- * Anonymous connections send no authentication at all.
- */
 function buildAuthentication(profile: ConnectionProfile, password: string): SystemAuth | undefined {
-    const { level, username } = profile.auth;
-    if (level === 'anonymous') return undefined;
-    if (!username) throw new Error(`Profile "${profile.name}" is missing a username`);
-    switch (level) {
-        case 'root':
-            return { username, password };
-        case 'namespace':
-            return { namespace: profile.namespace, username, password };
-        case 'database': {
-            if (!profile.database)
-                throw new Error(`Profile "${profile.name}" is missing its database`);
-            return {
-                namespace: profile.namespace,
-                database: profile.database,
-                username,
-                password
-            };
-        }
-    }
+    return systemAuth({
+        level: profile.auth.level,
+        namespace: profile.namespace,
+        database: profile.database,
+        username: profile.auth.username,
+        password
+    });
 }
 
 function attach(db: Surreal): void {

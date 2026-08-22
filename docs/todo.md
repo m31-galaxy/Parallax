@@ -89,6 +89,6 @@
 - [ ] **Programmatic API** for straightforward querying/scripting against the
       database (spec §10).
 - [ ] **LLM/agent access — MCP server v1** (designed 2026-08-22, spec §11;
-      `mcp` branch): extract the pure data layer from the runes stores, build
-      `mcp/server.ts` (structured CRUD tools + two-mode query tool), register
-      and test with a real agent.
+      `mcp` branch): pure data layer extracted and `mcp/server.ts` built +
+      verified over stdio (12 tools, dry-run rollback confirmed) 2026-08-22.
+      Remaining: register with a real agent, exercise in anger, merge.

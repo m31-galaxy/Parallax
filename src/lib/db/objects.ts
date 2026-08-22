@@ -6,7 +6,7 @@
 
 import { DateTime, RecordId, Table } from 'surrealdb';
 import type { Surreal } from 'surrealdb';
-import type { FieldView } from './classes.svelte';
+import type { FieldView } from './classes';
 
 export type ObjectRecord = Record<string, unknown> & { id: RecordId };
 

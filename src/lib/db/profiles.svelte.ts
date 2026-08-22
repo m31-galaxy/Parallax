@@ -7,8 +7,9 @@
  */
 
 import { SvelteDate } from 'svelte/reactivity';
+import type { AuthLevel } from './auth';
 
-export type AuthLevel = 'anonymous' | 'root' | 'namespace' | 'database';
+export type { AuthLevel };
 
 export interface ConnectionProfile {
     id: string;
