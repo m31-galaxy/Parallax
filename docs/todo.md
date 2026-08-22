@@ -14,8 +14,12 @@
       until the first tests are written.
 - [x] **Formatting tooling** — Prettier chosen and configured (2026-08-22);
       see spec.md §7.
-- [ ] **Linting tooling** (ESLint or alternatives) — still unchosen; Prettier
-      covers formatting only. Decide before the codebase grows.
+- [x] **Linting tooling** — ESLint chosen and configured, type-aware
+      (2026-08-22); see spec.md §7.
+- [ ] **Enforce the §4 naming convention** (`PascalCase` classes, `snake_case`
+      fields) as validation in the class designer — deliberately not an ESLint
+      rule (2026-08-22), since the convention governs user-defined database
+      schemas at runtime, not TypeScript identifiers.
 
 ## v0.1 — Foundation (current milestone)
 

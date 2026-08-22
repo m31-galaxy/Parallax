@@ -146,8 +146,12 @@ discussion task in [todo.md](todo.md)).
 - **Formatting: Prettier** (with `prettier-plugin-svelte`), configured in
   `.prettierrc`: 4-space indents (2-space for JSON), single quotes, no trailing
   commas, 100-column print width. Run via `bun run format` (write) and
-  `bun run format:check` (verify). Linting tooling (e.g. ESLint) is still
-  undecided (§12).
+  `bun run format:check` (verify).
+- **Linting: ESLint** (flat config in `eslint.config.js`) with
+  **typescript-eslint** `recommendedTypeChecked` (type-aware, via the TS project
+  service), **eslint-plugin-svelte**, and **eslint-config-prettier** so lint
+  rules never fight the formatter. Run via `bun run lint` and `bun run lint:fix`.
+  Formatting rules belong to Prettier; ESLint covers correctness only.
 - Test tooling is not yet decided (§12).
 
 ## 8. Connection & auth
@@ -205,7 +209,7 @@ Details and status tracked in [todo.md](todo.md):
 | 2026-08-22 | Repo layout: app at repository root; monorepo only if/when separate packages appear (§7)                                                                                            |
 | 2026-08-22 | Test tooling: deliberately deferred until the first tests are written (todo.md)                                                                                                     |
 | 2026-08-22 | Formatting: Prettier + `prettier-plugin-svelte`; 4-space indents (2-space for JSON), single quotes, no trailing commas, 100-col print width; `format` / `format:check` scripts (§7) |
-| 2026-08-22 | Linting tooling (ESLint or alternative) remains undecided — Prettier covers formatting only (§12)                                                                                   |
+| 2026-08-22 | Linting: ESLint flat config + typescript-eslint `recommendedTypeChecked` (type-aware) + eslint-plugin-svelte + eslint-config-prettier; `lint` / `lint:fix` scripts (§7)             |
 
 ## 12. Open questions
 
@@ -220,8 +224,6 @@ Undecided design decisions (ask the owner before acting on any of these):
 - Do both the card-like and document-like note editors ship in v0.1?
 - Test tooling (Vitest vs `bun test` vs a split) — deferred until the first
   tests are written.
-- Linting tooling (e.g. ESLint) — not yet chosen; none is configured.
-  (Formatting was decided on 2026-08-22: Prettier — see §7.)
 - Exact in-database representation of class metadata (§3.3's metadata table).
 - Shape of the distillation review UI (v0.2).
 
