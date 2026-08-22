@@ -15,6 +15,7 @@
         updateNote,
         type NoteRecord
     } from '$lib/db/notes';
+    import { distillAvailable, distillJobs, startDistillation } from '$lib/llm/distill.svelte';
 
     /** The object type being created; a Note by default (spec §5). */
     let selected = $state<string>(NOTE_CLASS);
@@ -99,14 +100,17 @@
         }
     }
 
-    async function capture(): Promise<void> {
+    async function capture(distill: boolean): Promise<void> {
         const content = draft.trim();
         if (content === '') return;
         busy = true;
         actionError = null;
         try {
-            await createNote(connection.client, content);
+            const note = await createNote(connection.client, content);
             draft = '';
+            // Fire-and-forget: distillation runs in the background while the
+            // user keeps capturing; progress shows in the panel below.
+            if (distill) startDistillation(connection.client, note);
             await loadNotes();
         } catch (err) {
             actionError = toMessage(err);
@@ -180,7 +184,7 @@
     function captureOnEnter(event: KeyboardEvent): void {
         if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
             event.preventDefault();
-            void capture();
+            void capture(distillAvailable());
         }
     }
 </script>
@@ -203,7 +207,7 @@
             class="capture"
             onsubmit={(event) => {
                 event.preventDefault();
-                void capture();
+                void capture(distillAvailable());
             }}
         >
             <textarea
@@ -211,10 +215,68 @@
                 rows="3"
                 placeholder="Write a note… (⌘⏎ to save)"
                 onkeydown={captureOnEnter}></textarea>
-            <button type="submit" disabled={busy || draft.trim() === ''}>Add note</button>
+            {#if distillAvailable()}
+                <div class="capture-actions">
+                    <button type="submit" class="primary" disabled={busy || draft.trim() === ''}>
+                        Distill
+                    </button>
+                    <button
+                        type="button"
+                        disabled={busy || draft.trim() === ''}
+                        onclick={() => void capture(false)}
+                    >
+                        Add note
+                    </button>
+                </div>
+            {:else}
+                <button type="submit" disabled={busy || draft.trim() === ''}>Add note</button>
+            {/if}
         </form>
         {#if actionError !== null}
             <p class="error">{actionError}</p>
+        {/if}
+
+        {#if distillJobs.all.length > 0}
+            <section class="jobs">
+                <h2>Distillation</h2>
+                <ul>
+                    {#each distillJobs.all as job (job)}
+                        <li class="job">
+                            <div class="job-head">
+                                <span class="badge {job.status}">
+                                    {job.status === 'running'
+                                        ? 'Distilling…'
+                                        : job.status === 'done'
+                                          ? 'Done'
+                                          : 'Failed'}
+                                </span>
+                                <span class="job-excerpt">{job.excerpt}</span>
+                                {#if job.status !== 'running'}
+                                    <button
+                                        class="dismiss"
+                                        onclick={() => distillJobs.dismiss(job)}
+                                    >
+                                        Dismiss
+                                    </button>
+                                {/if}
+                            </div>
+                            {#if job.log.length > 0}
+                                <ul class="job-log">
+                                    {#each job.log as line, i (i)}
+                                        <li>{line}</li>
+                                    {/each}
+                                </ul>
+                            {/if}
+                            {#if job.summary !== null}
+                                <p class="job-summary">{job.summary}</p>
+                            {/if}
+                            {#if job.error !== null}
+                                <p class="error">{job.error}</p>
+                            {/if}
+                        </li>
+                    {/each}
+                </ul>
+            </section>
         {/if}
     {:else if clsError !== null}
         <p class="error">{clsError}</p>
@@ -355,6 +417,101 @@
 
     .muted {
         color: #666;
+    }
+
+    .capture-actions {
+        display: flex;
+        gap: 0.4rem;
+    }
+
+    button.primary {
+        background: #1a1a1a;
+        color: #fff;
+        border-color: #1a1a1a;
+    }
+
+    .jobs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        max-width: 34rem;
+    }
+
+    .jobs > ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .job {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #fafafa;
+        padding: 0.6rem 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+    }
+
+    .job-head {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .badge {
+        border-radius: 999px;
+        padding: 0.1rem 0.55rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    .badge.running {
+        background: #e8f0fe;
+        color: #1a56b0;
+    }
+
+    .badge.done {
+        background: #e6f4ea;
+        color: #19713c;
+    }
+
+    .badge.error {
+        background: #fdeceb;
+        color: #b3261e;
+    }
+
+    .job-excerpt {
+        color: #666;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+    }
+
+    .job-head .dismiss {
+        font-size: 0.75rem;
+        padding: 0.15rem 0.5rem;
+    }
+
+    .job-log {
+        list-style: disc;
+        margin: 0;
+        padding-left: 1.2rem;
+        color: #444;
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        overflow-wrap: anywhere;
+    }
+
+    .job-summary {
+        margin: 0;
+        overflow-wrap: anywhere;
     }
 
     .notes {

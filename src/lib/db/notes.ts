@@ -52,8 +52,9 @@ export async function listNotes(db: Surreal): Promise<NoteRecord[]> {
 }
 
 /** `created` is filled by the database (DEFAULT time::now()). */
-export async function createNote(db: Surreal, content: string): Promise<void> {
-    await db.create<NoteRecord>(new Table(NOTE_CLASS)).content({ content });
+export async function createNote(db: Surreal, content: string): Promise<NoteRecord> {
+    const created = await db.create<NoteRecord>(new Table(NOTE_CLASS)).content({ content });
+    return created[0];
 }
 
 /** Merge, not replace: `created` is readonly and must be left untouched. */
