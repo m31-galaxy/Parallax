@@ -10,9 +10,11 @@
     import { connection } from '$lib/db/connection.svelte';
     import { getClass, type ClassView } from '$lib/db/classes.svelte';
     import { formatValue } from '$lib/db/objects';
+    import ObjectForm from '$lib/components/ObjectForm.svelte';
     import {
         approveProposal,
         coerceProposal,
+        commitProposalWith,
         getRequest,
         listProposals,
         rejectProposal,
@@ -32,6 +34,7 @@
     let classes = $state<Record<string, ClassView>>({});
     let rowBusy = $state<string | null>(null);
     let rowError = $state<Record<string, string>>({});
+    let editingId = $state<string | null>(null);
 
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     const POLL_MS = 1000;
@@ -130,6 +133,26 @@
         return coerceProposal(proposal, cls);
     }
 
+    /** Seed the edit form with the values that DID coerce; the rest start empty
+     *  so the user can fill or fix them (extraction missed or garbled them). */
+    function initialFor(proposal: Proposal): Record<string, unknown> {
+        return review(proposal)?.values ?? {};
+    }
+
+    async function submitEdit(proposal: Proposal, data: Record<string, unknown>): Promise<void> {
+        rowBusy = String(proposal.id);
+        rowError = { ...rowError, [String(proposal.id)]: '' };
+        try {
+            await commitProposalWith(connection.client, proposal, data);
+            proposals = proposals.filter((p) => p.id !== proposal.id);
+            editingId = null;
+        } catch (err) {
+            rowError = { ...rowError, [String(proposal.id)]: toMessage(err) };
+        } finally {
+            rowBusy = null;
+        }
+    }
+
     $effect(() => {
         return () => {
             if (pollTimer) clearTimeout(pollTimer);
@@ -154,47 +177,77 @@
             <ul class="proposals">
                 {#each proposals as proposal (String(proposal.id))}
                     {@const r = review(proposal)}
+                    {@const cls = classes[proposal.class_name]}
                     <li class="proposal">
                         <div class="head">
                             <strong>{proposal.class_name}</strong>
                             <span class="conf">{(proposal.confidence * 100).toFixed(0)}%</span>
                         </div>
-                        <dl class="fields">
-                            {#each Object.entries(proposal.payload) as [field, value] (field)}
-                                <dt>{field}</dt>
-                                <dd class:unparsed={r?.unparsed[field]}>
-                                    {formatValue(value)}
-                                    {#if r?.unparsed[field]}
-                                        <span class="flag"
-                                            >can’t use — {r.unparsed[field].reason}</span
-                                        >
-                                    {/if}
-                                </dd>
-                            {/each}
-                        </dl>
-                        {#if r && r.missing.length > 0}
-                            <p class="blocked">
-                                Missing required: {r.missing.join(', ')}
-                            </p>
+
+                        {#if editingId === String(proposal.id) && cls}
+                            {#key proposal.id}
+                                <ObjectForm
+                                    fields={cls.fields}
+                                    initial={initialFor(proposal)}
+                                    submitLabel="Add to {proposal.class_name}"
+                                    busy={rowBusy !== null}
+                                    error={rowError[String(proposal.id)] || null}
+                                    onsubmit={(data: Record<string, unknown>) =>
+                                        void submitEdit(proposal, data)}
+                                />
+                            {/key}
+                            <div class="actions">
+                                <button
+                                    disabled={rowBusy !== null}
+                                    onclick={() => (editingId = null)}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        {:else}
+                            <dl class="fields">
+                                {#each Object.entries(proposal.payload) as [field, value] (field)}
+                                    <dt>{field}</dt>
+                                    <dd class:unparsed={r?.unparsed[field]}>
+                                        {formatValue(value)}
+                                        {#if r?.unparsed[field]}
+                                            <span class="flag"
+                                                >can’t use — {r.unparsed[field].reason}</span
+                                            >
+                                        {/if}
+                                    </dd>
+                                {/each}
+                            </dl>
+                            {#if r && r.missing.length > 0}
+                                <p class="blocked">
+                                    Missing required: {r.missing.join(', ')} — use Edit to fill it in.
+                                </p>
+                            {/if}
+                            {#if rowError[String(proposal.id)]}
+                                <p class="error small">{rowError[String(proposal.id)]}</p>
+                            {/if}
+                            <div class="actions">
+                                <button
+                                    disabled={rowBusy !== null || (r?.missing.length ?? 0) > 0}
+                                    onclick={() => void approve(proposal)}
+                                >
+                                    Approve
+                                </button>
+                                <button
+                                    disabled={rowBusy !== null || !cls}
+                                    onclick={() => (editingId = String(proposal.id))}
+                                >
+                                    Edit
+                                </button>
+                                <button
+                                    class="danger"
+                                    disabled={rowBusy !== null}
+                                    onclick={() => void reject(proposal)}
+                                >
+                                    Reject
+                                </button>
+                            </div>
                         {/if}
-                        {#if rowError[String(proposal.id)]}
-                            <p class="error small">{rowError[String(proposal.id)]}</p>
-                        {/if}
-                        <div class="actions">
-                            <button
-                                disabled={rowBusy !== null || (r?.missing.length ?? 0) > 0}
-                                onclick={() => void approve(proposal)}
-                            >
-                                Approve
-                            </button>
-                            <button
-                                class="danger"
-                                disabled={rowBusy !== null}
-                                onclick={() => void reject(proposal)}
-                            >
-                                Reject
-                            </button>
-                        </div>
                     </li>
                 {/each}
             </ul>

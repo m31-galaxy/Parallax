@@ -181,3 +181,24 @@ export async function approveProposal(db: Surreal, proposal: Proposal): Promise<
 export async function rejectProposal(db: Surreal, id: RecordId): Promise<void> {
     await db.query(`UPDATE $id SET status = "rejected"`, { id });
 }
+
+/**
+ * Commit a proposal with user-edited, already-typed values (from the object
+ * form). Used when extraction missed or garbled a field and the user fixes it
+ * in review — the "edit" in approve/edit/reject (spec §6).
+ */
+export async function commitProposalWith(
+    db: Surreal,
+    proposal: Proposal,
+    values: Record<string, unknown>
+): Promise<RecordId> {
+    const created = await db
+        .create<{ id: RecordId }>(new Table(proposal.class_name))
+        .content(values);
+    const objectId = created[0].id;
+    await db.query(`UPDATE $id SET status = "approved", committed = $committed`, {
+        id: proposal.id,
+        committed: objectId
+    });
+    return objectId;
+}
