@@ -9,11 +9,14 @@
         formatValue,
         listObjects,
         objectId,
+        objectLabel,
         type ObjectRecord
     } from '$lib/db/objects';
 
     let cls = $state<ClassView | null>(null);
     let objects = $state<ObjectRecord[] | null>(null);
+    // Reference display labels (spec §4 heuristic): field name → rid → label.
+    let refLabels = $state<Record<string, Record<string, string>>>({});
     let loadError = $state<string | null>(null);
     let actionError = $state<string | null>(null);
     let busy = $state(false);
@@ -42,9 +45,19 @@
         try {
             const view = await getClass(connection.client, name);
             const rows = await listObjects(connection.client, name);
+            const labels: Record<string, Record<string, string>> = {};
+            for (const field of view.fields) {
+                if (field.uiType !== 'reference' || field.target === undefined) continue;
+                const targetClass = await getClass(connection.client, field.target);
+                const targets = await listObjects(connection.client, field.target);
+                labels[field.name] = Object.fromEntries(
+                    targets.map((record) => [String(record.id), objectLabel(targetClass, record)])
+                );
+            }
             if (token !== requestToken) return;
             cls = view;
             objects = rows;
+            refLabels = labels;
         } catch (err) {
             if (token !== requestToken) return;
             loadError = toMessage(err);
@@ -110,7 +123,13 @@
                         {#each objects as record (String(record.id))}
                             <tr>
                                 {#each cls.fields as field (field.name)}
-                                    <td>{formatValue(record[field.name])}</td>
+                                    <td>
+                                        {field.uiType === 'reference' && record[field.name] != null
+                                            ? (refLabels[field.name]?.[
+                                                  String(record[field.name])
+                                              ] ?? formatValue(record[field.name]))
+                                            : formatValue(record[field.name])}
+                                    </td>
                                 {/each}
                                 <td class="row-actions">
                                     <a

@@ -4,9 +4,9 @@
  * validation is the database's (SCHEMAFULL enforcement, verbatim errors).
  */
 
-import { DateTime, RecordId, Table } from 'surrealdb';
+import { DateTime, RecordId, StringRecordId, Table } from 'surrealdb';
 import type { Surreal } from 'surrealdb';
-import type { FieldView } from './classes.svelte';
+import type { ClassView, FieldView } from './classes.svelte';
 
 export type ObjectRecord = Record<string, unknown> & { id: RecordId };
 
@@ -67,9 +67,24 @@ export function fromDatetimeInput(value: string): Date {
     return new Date(value);
 }
 
+/**
+ * Display label for an object: the first text-ish field with a value, falling
+ * back to the record id (spec §4 label heuristic).
+ */
+export function objectLabel(cls: ClassView, record: ObjectRecord): string {
+    for (const field of cls.fields) {
+        if (field.uiType !== 'text' && field.uiType !== 'long_text') continue;
+        const value = record[field.name];
+        if (typeof value === 'string' && value.trim() !== '') return value;
+    }
+    return String(record.id);
+}
+
 /** Initial input representation (string/boolean) of a stored value. */
 export function toDraftValue(field: FieldView, value: unknown): string | boolean {
     switch (field.uiType) {
+        case 'reference':
+            return value instanceof RecordId ? value.toString() : '';
         case 'boolean':
             return field.required ? value === true : value == null ? '' : String(value === true);
         case 'datetime': {
@@ -101,6 +116,9 @@ export function fromDraftValue(field: FieldView, draft: string | boolean): unkno
             return Number(draft);
         case 'datetime':
             return new DateTime(fromDatetimeInput(draft));
+        case 'reference':
+            // Draft holds the full record id string ("Person:x1y2").
+            return new StringRecordId(draft);
         default:
             return draft;
     }
@@ -109,6 +127,7 @@ export function fromDraftValue(field: FieldView, draft: string | boolean): unkno
 /** Human-readable cell for the object list. */
 export function formatValue(value: unknown): string {
     if (value == null) return '—';
+    if (value instanceof RecordId) return value.toString();
     if (value instanceof DateTime) return value.toDate().toLocaleString();
     if (value instanceof Date) return value.toLocaleString();
     if (typeof value === 'boolean') return value ? 'yes' : 'no';

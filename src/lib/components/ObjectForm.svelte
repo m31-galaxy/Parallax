@@ -1,6 +1,7 @@
 <script lang="ts">
-    import { FIELD_TYPE_LABELS, type FieldView } from '$lib/db/classes.svelte';
-    import { fromDraftValue, toDraftValue } from '$lib/db/objects';
+    import { FIELD_TYPE_LABELS, getClass, type FieldView } from '$lib/db/classes.svelte';
+    import { connection } from '$lib/db/connection.svelte';
+    import { fromDraftValue, listObjects, objectLabel, toDraftValue } from '$lib/db/objects';
 
     interface Props {
         fields: FieldView[];
@@ -34,6 +35,49 @@
         )
     );
 
+    // Options for reference pickers, keyed by field name. Loaded once per
+    // mount (parents remount the form when the target record changes).
+    interface RefOption {
+        value: string;
+        label: string;
+    }
+    let refOptions = $state<Record<string, RefOption[] | null>>({});
+    let refError = $state<string | null>(null);
+
+    $effect(() => {
+        for (const field of fields) {
+            if (field.uiType === 'reference' && field.target !== undefined) {
+                void loadRefOptions(field.name, field.target);
+            }
+        }
+    });
+
+    async function loadRefOptions(fieldName: string, target: string): Promise<void> {
+        refOptions[fieldName] ??= null;
+        try {
+            const targetClass = await getClass(connection.client, target);
+            const records = await listObjects(connection.client, target);
+            const options = records.map((record) => ({
+                value: String(record.id),
+                label: objectLabel(targetClass, record)
+            }));
+            // Preserve a link whose target no longer appears (e.g. created
+            // outside Parallax) rather than silently dropping it.
+            const current = draft[fieldName];
+            if (
+                typeof current === 'string' &&
+                current !== '' &&
+                !options.some((o) => o.value === current)
+            ) {
+                options.push({ value: current, label: `${current} (missing)` });
+            }
+            refOptions[fieldName] = options;
+        } catch (err) {
+            refError = err instanceof Error ? err.message : String(err);
+            refOptions[fieldName] = [];
+        }
+    }
+
     function submit(): void {
         const data: Record<string, unknown> = {};
         for (const field of editable) {
@@ -51,7 +95,30 @@
     }}
 >
     {#each editable as field (field.name)}
-        {#if field.uiType === 'boolean'}
+        {#if field.uiType === 'reference'}
+            <label>
+                <span>
+                    <code>{field.name}</code>
+                    <small>
+                        {field.target} reference
+                        {field.required ? '· required' : ''}
+                    </small>
+                </span>
+                <select bind:value={draft[field.name]} required={field.required}>
+                    {#if !field.required}
+                        <option value="">—</option>
+                    {:else}
+                        <option value="" disabled>Select a {field.target}…</option>
+                    {/if}
+                    {#each refOptions[field.name] ?? [] as option (option.value)}
+                        <option value={option.value}>{option.label}</option>
+                    {/each}
+                </select>
+                {#if refOptions[field.name]?.length === 0}
+                    <small>No {field.target} objects exist yet.</small>
+                {/if}
+            </label>
+        {:else if field.uiType === 'boolean'}
             {#if field.required}
                 <label class="inline">
                     <input type="checkbox" bind:checked={draft[field.name] as boolean} />
@@ -108,6 +175,9 @@
         </p>
     {/if}
 
+    {#if refError !== null}
+        <p class="error">{refError}</p>
+    {/if}
     {#if error !== null}
         <p class="error">{error}</p>
     {/if}

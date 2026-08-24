@@ -26,7 +26,7 @@
     let requestToken = 0;
 
     let pluralDraft = $state('');
-    let newField = $state<NewField>({ name: '', type: 'text', required: false });
+    let newField = $state<NewField>({ name: '', type: 'text', required: false, target: '' });
 
     const className = $derived(page.params.name ?? '');
 
@@ -65,12 +65,17 @@
                 (cls?.fields.some((f) => f.name === newField.name) ?? false))
     );
 
+    const targetMissing = $derived(
+        newField.type === 'reference' &&
+            !classStore.all.some((c) => c.name === (newField.target ?? ''))
+    );
+
     async function submitField(): Promise<void> {
         busy = true;
         actionError = null;
         try {
             await addField(connection.client, className, newField);
-            newField = { name: '', type: 'text', required: false };
+            newField = { name: '', type: 'text', required: false, target: '' };
             await load(className);
             await classStore.refresh();
         } catch (err) {
@@ -179,9 +184,11 @@
                         <tr>
                             <td><code>{field.name}</code></td>
                             <td>
-                                {field.uiType
-                                    ? FIELD_TYPE_LABELS[field.uiType]
-                                    : `unsupported (${field.surrealType})`}
+                                {field.uiType === 'reference'
+                                    ? `Reference → ${field.target}`
+                                    : field.uiType
+                                      ? FIELD_TYPE_LABELS[field.uiType]
+                                      : `unsupported (${field.surrealType})`}
                             </td>
                             <td>{field.required ? 'yes' : 'no'}</td>
                             <td>
@@ -217,11 +224,22 @@
                     <option value={type}>{FIELD_TYPE_LABELS[type]}</option>
                 {/each}
             </select>
+            {#if newField.type === 'reference'}
+                <select bind:value={newField.target} aria-label="Reference target class">
+                    <option value="" disabled>Target class…</option>
+                    {#each classStore.all as option (option.name)}
+                        <option value={option.name}>{option.name}</option>
+                    {/each}
+                </select>
+            {/if}
             <label class="required">
                 <input type="checkbox" bind:checked={newField.required} />
                 required
             </label>
-            <button type="submit" disabled={busy || newField.name === '' || fieldNameInvalid}>
+            <button
+                type="submit"
+                disabled={busy || newField.name === '' || fieldNameInvalid || targetMissing}
+            >
                 Add field
             </button>
         </form>
@@ -320,6 +338,7 @@
         display: flex;
         gap: 0.5rem;
         align-items: center;
+        flex-wrap: wrap;
     }
 
     .add-field input:not([type='checkbox']) {

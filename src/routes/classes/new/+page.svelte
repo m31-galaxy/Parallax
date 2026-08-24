@@ -19,7 +19,7 @@
 
     let nextKey = 0;
     function blankField(): FieldDraft {
-        return { key: nextKey++, name: '', type: 'text', required: false };
+        return { key: nextKey++, name: '', type: 'text', required: false, target: '' };
     }
 
     let name = $state('');
@@ -44,8 +44,19 @@
             if (seen.has(field.name)) errors.push(`Duplicate field name "${field.name}".`);
             seen.add(field.name);
         }
+        for (const field of named) {
+            if (field.type === 'reference' && !targetOptions.includes(field.target ?? ''))
+                errors.push(`Reference field "${field.name}" needs a target class.`);
+        }
         return errors;
     });
+
+    // Classes a reference can point at — including this one (self-reference),
+    // as the table is defined before its fields in the same query.
+    const targetOptions = $derived([
+        ...(isValidClassName(name) && !classStore.all.some((c) => c.name === name) ? [name] : []),
+        ...classStore.all.map((c) => c.name)
+    ]);
 
     const submittable = $derived(
         name !== '' && plural.trim() !== '' && validationErrors.length === 0 && !busy
@@ -101,6 +112,14 @@
                             <option value={type}>{FIELD_TYPE_LABELS[type]}</option>
                         {/each}
                     </select>
+                    {#if field.type === 'reference'}
+                        <select bind:value={field.target} aria-label="Reference target class">
+                            <option value="" disabled>Target class…</option>
+                            {#each targetOptions as option (option)}
+                                <option value={option}>{option}</option>
+                            {/each}
+                        </select>
+                    {/if}
                     <label class="required">
                         <input type="checkbox" bind:checked={field.required} />
                         required
@@ -182,6 +201,7 @@
         display: flex;
         gap: 0.5rem;
         align-items: center;
+        flex-wrap: wrap;
     }
 
     .field-row input:not([type='checkbox']) {

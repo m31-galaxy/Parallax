@@ -12,8 +12,15 @@ import { escapeIdent, escapeIdPart } from 'surrealdb';
 import type { Surreal } from 'surrealdb';
 import { connection } from './connection.svelte';
 
-/** UI-level field types for v0.1 (spec §4); more are planned in todo.md. */
-export const FIELD_TYPES = ['text', 'long_text', 'number', 'boolean', 'datetime'] as const;
+/** UI-level field types (spec §4); select/enum and lists are still planned. */
+export const FIELD_TYPES = [
+    'text',
+    'long_text',
+    'number',
+    'boolean',
+    'datetime',
+    'reference'
+] as const;
 export type UiFieldType = (typeof FIELD_TYPES)[number];
 
 export const FIELD_TYPE_LABELS: Record<UiFieldType, string> = {
@@ -21,11 +28,15 @@ export const FIELD_TYPE_LABELS: Record<UiFieldType, string> = {
     long_text: 'Long text',
     number: 'Number',
     boolean: 'Boolean',
-    datetime: 'Date & time'
+    datetime: 'Date & time',
+    reference: 'Reference'
 };
 
-/** UI type → SurrealDB type. `long_text` is a UI hint over plain string. */
-const SURREAL_TYPES: Record<UiFieldType, string> = {
+/**
+ * UI type → SurrealDB type for scalar types. `long_text` is a UI hint over
+ * plain string; `reference` is handled separately (record<Target>).
+ */
+const SURREAL_TYPES: Record<Exclude<UiFieldType, 'reference'>, string> = {
     text: 'string',
     long_text: 'string',
     number: 'number',
@@ -37,6 +48,8 @@ export interface NewField {
     name: string;
     type: UiFieldType;
     required: boolean;
+    /** Target class name; required when type is 'reference'. */
+    target?: string;
 }
 
 export interface ClassSummary {
@@ -48,10 +61,12 @@ export interface ClassSummary {
 /** A field as read back from the database (INFO joined with meta hints). */
 export interface FieldView {
     name: string;
-    /** Undefined when the SurrealDB type has no v0.1 UI equivalent. */
+    /** Undefined when the SurrealDB type has no UI equivalent. */
     uiType?: UiFieldType;
     surrealType: string;
     required: boolean;
+    /** Target class name for reference fields (parsed from record<Target>). */
+    target?: string;
 }
 
 export interface ClassView extends ClassSummary {
@@ -91,6 +106,23 @@ DEFINE FIELD IF NOT EXISTS fields[*].ui_type ON ${META_TABLE} TYPE string;
 `;
 
 function fieldDefinition(className: string, field: NewField): string {
+    // References get DB-enforced integrity (spec §4): existence checked at
+    // write time; deleting a target UNSETs optional links and is REJECTed
+    // while required links depend on it.
+    if (field.type === 'reference') {
+        if (!field.target || !isValidClassName(field.target))
+            throw new Error(`Reference field "${field.name}" needs a valid target class`);
+        const record = `record<${escapeIdent(field.target)}>`;
+        const type = field.required ? record : `option<${record}>`;
+        const assert = field.required
+            ? 'ASSERT record::exists($value)'
+            : 'ASSERT $value = NONE OR record::exists($value)';
+        const onDelete = field.required ? 'REJECT' : 'UNSET';
+        return (
+            `DEFINE FIELD ${escapeIdent(field.name)} ON ${escapeIdent(className)} ` +
+            `TYPE ${type} ${assert} REFERENCE ON DELETE ${onDelete}`
+        );
+    }
     const surrealType = SURREAL_TYPES[field.type];
     const type = field.required ? surrealType : `option<${surrealType}>`;
     return `DEFINE FIELD ${escapeIdent(field.name)} ON ${escapeIdent(className)} TYPE ${type}`;
@@ -106,9 +138,10 @@ async function fetchMeta(db: Surreal, className: string): Promise<MetaRow | unde
 
 /** Map a raw `DEFINE FIELD ...` string to a FieldView, using meta hints. */
 function parseFieldDefinition(name: string, definition: string, hints: MetaFieldHint[]): FieldView {
-    const match = /\sTYPE\s+(.+?)(?:\s+(?:PERMISSIONS|DEFAULT|ASSERT|VALUE|COMMENT)\s|$)/.exec(
-        definition
-    );
+    const match =
+        /\sTYPE\s+(.+?)(?:\s+(?:PERMISSIONS|DEFAULT|ASSERT|VALUE|COMMENT|REFERENCE)\s|$)/.exec(
+            definition
+        );
     let surrealType = match ? match[1].trim() : 'unknown';
     let required = true;
     // Optional fields appear as `option<T>` or (SurrealDB 3.x) as `none | T`.
@@ -124,12 +157,21 @@ function parseFieldDefinition(name: string, definition: string, hints: MetaField
         }
     }
 
+    const recordMatch = /^record<(.+)>$/.exec(surrealType);
+    if (recordMatch) {
+        return { name, uiType: 'reference', surrealType, required, target: recordMatch[1] };
+    }
+
     const hint = hints.find((h) => h.name === name)?.ui_type;
-    let uiType = FIELD_TYPES.find((t) => t === hint);
+    let uiType: UiFieldType | undefined = FIELD_TYPES.find((t) => t === hint && t !== 'reference');
     // The hint must agree with the real schema; the schema wins (spec §3).
-    if (uiType && SURREAL_TYPES[uiType] !== surrealType) uiType = undefined;
+    if (uiType && uiType !== 'reference' && SURREAL_TYPES[uiType] !== surrealType) {
+        uiType = undefined;
+    }
     if (!uiType) {
-        uiType = FIELD_TYPES.find((t) => SURREAL_TYPES[t] === surrealType && t !== 'long_text');
+        uiType = FIELD_TYPES.find(
+            (t) => t !== 'reference' && t !== 'long_text' && SURREAL_TYPES[t] === surrealType
+        );
     }
     return { name, uiType, surrealType, required };
 }
