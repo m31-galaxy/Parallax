@@ -5,13 +5,14 @@
     import {
         classStore,
         createClass,
-        FIELD_TYPE_LABELS,
-        FIELD_TYPES,
+        defaultFieldType,
+        fieldTypeProblem,
         isValidClassName,
         isValidFieldName,
         type NewField
     } from '$lib/db/classes.svelte';
     import { connection } from '$lib/db/connection.svelte';
+    import TypePicker from '$lib/components/TypePicker.svelte';
 
     interface FieldDraft extends NewField {
         key: number;
@@ -19,7 +20,7 @@
 
     let nextKey = 0;
     function blankField(): FieldDraft {
-        return { key: nextKey++, name: '', type: 'text', required: false, target: '' };
+        return { key: nextKey++, name: '', type: defaultFieldType(), required: false };
     }
 
     let name = $state('');
@@ -45,8 +46,8 @@
             seen.add(field.name);
         }
         for (const field of named) {
-            if (field.type === 'reference' && !targetOptions.includes(field.target ?? ''))
-                errors.push(`Reference field "${field.name}" needs a target class.`);
+            const problem = fieldTypeProblem(field.type);
+            if (problem !== null) errors.push(`Field "${field.name}" ${problem}.`);
         }
         return errors;
     });
@@ -107,19 +108,7 @@
                         placeholder="field_name"
                         aria-label="Field name"
                     />
-                    <select bind:value={field.type} aria-label="Field type">
-                        {#each FIELD_TYPES as type (type)}
-                            <option value={type}>{FIELD_TYPE_LABELS[type]}</option>
-                        {/each}
-                    </select>
-                    {#if field.type === 'reference'}
-                        <select bind:value={field.target} aria-label="Reference target class">
-                            <option value="" disabled>Target class…</option>
-                            {#each targetOptions as option (option)}
-                                <option value={option}>{option}</option>
-                            {/each}
-                        </select>
-                    {/if}
+                    <TypePicker bind:type={field.type} targets={targetOptions} />
                     <label class="required">
                         <input type="checkbox" bind:checked={field.required} />
                         required
@@ -215,8 +204,7 @@
         white-space: nowrap;
     }
 
-    input,
-    select {
+    input {
         font: inherit;
         padding: 0.4rem 0.5rem;
         border: 1px solid #ccc;

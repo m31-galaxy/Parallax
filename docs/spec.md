@@ -91,8 +91,11 @@ Terminology borrows deliberately from OOP:
   schema — not a freeform text note. Example: a `Person` class mirroring a
   contact/address book with `first_name`, `last_name`, `date_of_birth`,
   `address`, etc.
-- **Field types: core scalars + references** — select/enum and lists are
-  still planned ([todo.md](todo.md)):
+- **Type-system direction: full parity with SurrealDB types** — if it exists
+  in SurrealDB, it should exist in Parallax (owner decision, 2026-08-24).
+  Field types are **recursive**: any type can be a list element, including
+  lists of lists. Currently shipped — core scalars, references, and lists;
+  select/enum and further SurrealDB scalars are planned ([todo.md](todo.md)):
 
     | UI type     | SurrealDB type          |
     | ----------- | ----------------------- |
@@ -102,8 +105,12 @@ Terminology borrows deliberately from OOP:
     | Boolean     | `bool`                  |
     | Date & time | `datetime`              |
     | Reference   | `record<Target>`        |
+    | List of T   | `array<T>` (recursive)  |
 
-    A field is either required (bare type) or optional (`option<T>`).
+    A field is either required (bare type) or optional (`option<T>`). For
+    lists, **required means the field is present and may be empty** — the
+    engine's native semantics (an absent array fails, `[]` passes); optional
+    empty lists are unset. Empty list items are dropped on save.
 
 - **References** (e.g. `Person.best_friend` → Person, `Person.first_met` →
   Event; self-references allowed, including while the class is being created).
@@ -116,6 +123,14 @@ Terminology borrows deliberately from OOP:
   the **label heuristic**: a referenced object is shown by its first text-ish
   field with a value, falling back to the record id — in form pickers and
   object-list columns.
+- **References inside lists** (e.g. `Event.attendees` → list of Person) keep
+  DB-enforced integrity: `REFERENCE ON DELETE UNSET` removes **just the
+  deleted element** from the array (verified — deleting a person surgically
+  leaves the other attendees), so it is safe for required lists too; the
+  existence `ASSERT` applies element-wise via nested `.all()` closures at any
+  list depth. The `REFERENCE` clause itself only attaches to top-level
+  references and direct list elements; references nested deeper (e.g. inside
+  a list of lists) get the existence assert but no delete behaviour.
 
 - **Class ↔ database mapping:** a class is a `SCHEMAFULL` table whose name is
   the singular name; fields are `DEFINE FIELD` definitions. Structure is read
@@ -352,6 +367,8 @@ Details and status tracked in [todo.md](todo.md):
 | 2026-08-22 | Note provisioning: automatic on first use, idempotent (DEFINE IF NOT EXISTS + INSERT IGNORE meta); `created` enforced by the DB via DEFAULT time::now() READONLY (§5)                                                                                                                 |
 | 2026-08-22 | Reference field type shipped: `record<Target>` with DB-enforced integrity — optional → ON DELETE UNSET, required → ON DELETE REJECT, plus a write-time existence ASSERT; self-references allowed (§4)                                                                                 |
 | 2026-08-22 | Reference display: label heuristic — first text-ish field with a value, record-id fallback — in pickers and object lists (§4)                                                                                                                                                         |
+| 2026-08-24 | Type-system direction: full parity with SurrealDB types — "if it exists in SurrealDB then it should exist here"; field types are recursive, any type may be a list element including lists of lists (§4)                                                                              |
+| 2026-08-24 | Lists shipped: `array<T>` for every current type, recursive; required = present-may-be-empty; list-of-reference integrity via ON DELETE UNSET removing just the element (verified) + element-wise existence asserts (§4)                                                              |
 
 ## 12. Open questions
 

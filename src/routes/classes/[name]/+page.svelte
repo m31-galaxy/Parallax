@@ -1,12 +1,12 @@
 <script lang="ts">
     import { resolve } from '$app/paths';
     import { page } from '$app/state';
-    import { classStore, getClass, type ClassView } from '$lib/db/classes.svelte';
+    import { classStore, getClass, referenceTargets, type ClassView } from '$lib/db/classes.svelte';
     import { connection } from '$lib/db/connection.svelte';
     import { DelayedLoading } from '$lib/loading.svelte';
     import {
         deleteObject,
-        formatValue,
+        formatTyped,
         listObjects,
         objectId,
         objectLabel,
@@ -15,7 +15,7 @@
 
     let cls = $state<ClassView | null>(null);
     let objects = $state<ObjectRecord[] | null>(null);
-    // Reference display labels (spec §4 heuristic): field name → rid → label.
+    // Reference display labels (spec §4 heuristic): target class → rid → label.
     let refLabels = $state<Record<string, Record<string, string>>>({});
     let loadError = $state<string | null>(null);
     let actionError = $state<string | null>(null);
@@ -46,12 +46,14 @@
             const view = await getClass(connection.client, name);
             const rows = await listObjects(connection.client, name);
             const labels: Record<string, Record<string, string>> = {};
-            for (const field of view.fields) {
-                if (field.uiType !== 'reference' || field.target === undefined) continue;
-                const targetClass = await getClass(connection.client, field.target);
-                const targets = await listObjects(connection.client, field.target);
-                labels[field.name] = Object.fromEntries(
-                    targets.map((record) => [String(record.id), objectLabel(targetClass, record)])
+            const targets = new Set(
+                view.fields.flatMap((f) => (f.type ? referenceTargets(f.type) : []))
+            );
+            for (const target of targets) {
+                const targetClass = await getClass(connection.client, target);
+                const records = await listObjects(connection.client, target);
+                labels[target] = Object.fromEntries(
+                    records.map((record) => [String(record.id), objectLabel(targetClass, record)])
                 );
             }
             if (token !== requestToken) return;
@@ -124,11 +126,11 @@
                             <tr>
                                 {#each cls.fields as field (field.name)}
                                     <td>
-                                        {field.uiType === 'reference' && record[field.name] != null
-                                            ? (refLabels[field.name]?.[
-                                                  String(record[field.name])
-                                              ] ?? formatValue(record[field.name]))
-                                            : formatValue(record[field.name])}
+                                        {formatTyped(
+                                            field.type,
+                                            record[field.name],
+                                            (target, rid) => refLabels[target]?.[rid]
+                                        )}
                                     </td>
                                 {/each}
                                 <td class="row-actions">

@@ -73,12 +73,14 @@
 
 - [ ] **Document-like note editor** (Obsidian-style full-page editing) —
       deferred from v0.1 note capture (spec §5).
-- [ ] **More field types** (spec §4): references shipped 2026-08-22;
-      still planned: select/enum (string + `ASSERT ... INSIDE`) and lists
-      (`array<T>`).
-- [ ] **MCP reference support** (`mcp` branch, after merge): create_class
-      accepts reference fields; coerceData converts "Person:x" strings to
-      record ids; get_class exposes targets.
+- [ ] **More field types** (spec §4): references shipped 2026-08-22, lists
+      2026-08-24. Still planned toward full SurrealDB parity: select/enum
+      (string + `ASSERT ... INSIDE`), then further scalars — duration, uuid,
+      decimal, bytes, object, geometry.
+- [ ] **MCP recursive-type support** (`mcp` branch, after merge): create_class
+      accepts the recursive type model (references, lists); coerceData converts
+      "Person:x" strings to record ids and ISO strings to datetimes inside
+      lists; get_class exposes the type trees.
 - [x] **Destructive schema operations — deletes**: field removal (two-step
       confirm, stored values purged) and class deletion (typed-name confirm)
       shipped 2026-08-22 (spec §4).

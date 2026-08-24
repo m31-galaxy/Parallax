@@ -6,7 +6,7 @@
 
 import { DateTime, RecordId, StringRecordId, Table } from 'surrealdb';
 import type { Surreal } from 'surrealdb';
-import type { ClassView, FieldView } from './classes.svelte';
+import type { ClassView, FieldType } from './classes.svelte';
 
 export type ObjectRecord = Record<string, unknown> & { id: RecordId };
 
@@ -73,24 +73,35 @@ export function fromDatetimeInput(value: string): Date {
  */
 export function objectLabel(cls: ClassView, record: ObjectRecord): string {
     for (const field of cls.fields) {
-        if (field.uiType !== 'text' && field.uiType !== 'long_text') continue;
+        if (field.type?.kind !== 'text' && field.type?.kind !== 'long_text') continue;
         const value = record[field.name];
         if (typeof value === 'string' && value.trim() !== '') return value;
     }
     return String(record.id);
 }
 
-/** Initial input representation (string/boolean) of a stored value. */
-export function toDraftValue(field: FieldView, value: unknown): string | boolean {
-    switch (field.uiType) {
-        case 'reference':
-            return value instanceof RecordId ? value.toString() : '';
+// --- Recursive draft model ---------------------------------------------------
+//
+// Drafts are what form inputs bind to: strings for most scalars, booleans for
+// checkbox-rendered booleans, arrays of drafts for lists. `required` governs
+// the top level only; list elements always exist, so they recurse as required.
+
+export type DraftValue = string | boolean | DraftValue[];
+
+export function toDraft(type: FieldType, value: unknown, required: boolean): DraftValue {
+    switch (type.kind) {
+        case 'list':
+            return Array.isArray(value)
+                ? value.map((item) => toDraft(type.element, item, true))
+                : [];
         case 'boolean':
-            return field.required ? value === true : value == null ? '' : String(value === true);
+            return required ? value === true : value == null ? '' : String(value === true);
         case 'datetime': {
             if (value instanceof DateTime) return toDatetimeInput(value.toDate());
             return value instanceof Date ? toDatetimeInput(value) : '';
         }
+        case 'reference':
+            return value instanceof RecordId ? value.toString() : '';
         default: {
             if (value == null) return '';
             if (typeof value === 'string') return value;
@@ -100,18 +111,32 @@ export function toDraftValue(field: FieldView, value: unknown): string | boolean
     }
 }
 
+/** A fresh draft for a newly added value (empty input / empty list). */
+export function blankDraft(type: FieldType, required: boolean): DraftValue {
+    if (type.kind === 'list') return [];
+    if (type.kind === 'boolean' && required) return false;
+    return '';
+}
+
 /**
- * Convert a draft back to a typed value. Returns `undefined` for "unset":
- * empty optional inputs are omitted so the field stays NONE. Empty required
- * inputs are also omitted — the database rejects them with its own error.
+ * Convert a draft back to a typed value. `undefined` means "unset": empty
+ * optional inputs are omitted (NONE), empty required inputs are submitted as
+ * missing so the database rejects them with its own error. Empty list items
+ * are dropped; a required list always submits (possibly empty, per spec §4).
  */
-export function fromDraftValue(field: FieldView, draft: string | boolean): unknown {
-    if (field.uiType === 'boolean') {
-        if (field.required) return draft === true;
+export function fromDraft(type: FieldType, draft: DraftValue, required: boolean): unknown {
+    if (type.kind === 'list') {
+        const items = (Array.isArray(draft) ? draft : [])
+            .map((item) => fromDraft(type.element, item, true))
+            .filter((item) => item !== undefined);
+        return required || items.length > 0 ? items : undefined;
+    }
+    if (type.kind === 'boolean') {
+        if (required) return draft === true;
         return draft === '' ? undefined : draft === 'true';
     }
     if (typeof draft !== 'string' || draft === '') return undefined;
-    switch (field.uiType) {
+    switch (type.kind) {
         case 'number':
             return Number(draft);
         case 'datetime':
@@ -122,6 +147,26 @@ export function fromDraftValue(field: FieldView, draft: string | boolean): unkno
         default:
             return draft;
     }
+}
+
+/**
+ * Human-readable value for list cells, resolving reference labels via the
+ * provided lookup (spec §4 label heuristic).
+ */
+export function formatTyped(
+    type: FieldType | undefined,
+    value: unknown,
+    labelFor: (target: string, rid: string) => string | undefined
+): string {
+    if (value == null) return '—';
+    if (type?.kind === 'reference' && value instanceof RecordId) {
+        return labelFor(type.target, value.toString()) ?? value.toString();
+    }
+    if (type?.kind === 'list' && Array.isArray(value)) {
+        if (value.length === 0) return '—';
+        return value.map((item) => formatTyped(type.element, item, labelFor)).join(', ');
+    }
+    return formatValue(value);
 }
 
 /** Human-readable cell for the object list. */

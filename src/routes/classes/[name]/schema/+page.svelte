@@ -5,16 +5,18 @@
     import {
         addField,
         classStore,
+        defaultFieldType,
         deleteClass,
-        FIELD_TYPE_LABELS,
-        FIELD_TYPES,
+        fieldTypeProblem,
         getClass,
         isValidFieldName,
         removeField,
+        typeLabel,
         updatePlural,
         type ClassView,
         type NewField
     } from '$lib/db/classes.svelte';
+    import TypePicker from '$lib/components/TypePicker.svelte';
     import { connection } from '$lib/db/connection.svelte';
     import { DelayedLoading } from '$lib/loading.svelte';
 
@@ -26,7 +28,7 @@
     let requestToken = 0;
 
     let pluralDraft = $state('');
-    let newField = $state<NewField>({ name: '', type: 'text', required: false, target: '' });
+    let newField = $state<NewField>({ name: '', type: defaultFieldType(), required: false });
 
     const className = $derived(page.params.name ?? '');
 
@@ -65,17 +67,14 @@
                 (cls?.fields.some((f) => f.name === newField.name) ?? false))
     );
 
-    const targetMissing = $derived(
-        newField.type === 'reference' &&
-            !classStore.all.some((c) => c.name === (newField.target ?? ''))
-    );
+    const typeProblem = $derived(fieldTypeProblem(newField.type));
 
     async function submitField(): Promise<void> {
         busy = true;
         actionError = null;
         try {
             await addField(connection.client, className, newField);
-            newField = { name: '', type: 'text', required: false, target: '' };
+            newField = { name: '', type: defaultFieldType(), required: false };
             await load(className);
             await classStore.refresh();
         } catch (err) {
@@ -184,11 +183,9 @@
                         <tr>
                             <td><code>{field.name}</code></td>
                             <td>
-                                {field.uiType === 'reference'
-                                    ? `Reference → ${field.target}`
-                                    : field.uiType
-                                      ? FIELD_TYPE_LABELS[field.uiType]
-                                      : `unsupported (${field.surrealType})`}
+                                {field.type
+                                    ? typeLabel(field.type)
+                                    : `unsupported (${field.surrealType})`}
                             </td>
                             <td>{field.required ? 'yes' : 'no'}</td>
                             <td>
@@ -219,26 +216,14 @@
                 placeholder="field_name"
                 aria-label="New field name"
             />
-            <select bind:value={newField.type} aria-label="New field type">
-                {#each FIELD_TYPES as type (type)}
-                    <option value={type}>{FIELD_TYPE_LABELS[type]}</option>
-                {/each}
-            </select>
-            {#if newField.type === 'reference'}
-                <select bind:value={newField.target} aria-label="Reference target class">
-                    <option value="" disabled>Target class…</option>
-                    {#each classStore.all as option (option.name)}
-                        <option value={option.name}>{option.name}</option>
-                    {/each}
-                </select>
-            {/if}
+            <TypePicker bind:type={newField.type} targets={classStore.all.map((c) => c.name)} />
             <label class="required">
                 <input type="checkbox" bind:checked={newField.required} />
                 required
             </label>
             <button
                 type="submit"
-                disabled={busy || newField.name === '' || fieldNameInvalid || targetMissing}
+                disabled={busy || newField.name === '' || fieldNameInvalid || typeProblem !== null}
             >
                 Add field
             </button>
@@ -352,8 +337,7 @@
         white-space: nowrap;
     }
 
-    input,
-    select {
+    input {
         font: inherit;
         padding: 0.4rem 0.5rem;
         border: 1px solid #ccc;

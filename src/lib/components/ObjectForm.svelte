@@ -1,7 +1,8 @@
 <script lang="ts">
-    import { FIELD_TYPE_LABELS, getClass, type FieldView } from '$lib/db/classes.svelte';
+    import ValueEditor, { type RefOption } from './ValueEditor.svelte';
+    import { getClass, referenceTargets, typeLabel, type FieldView } from '$lib/db/classes.svelte';
     import { connection } from '$lib/db/connection.svelte';
-    import { fromDraftValue, listObjects, objectLabel, toDraftValue } from '$lib/db/objects';
+    import { fromDraft, listObjects, objectLabel, toDraft, type DraftValue } from '$lib/db/objects';
 
     interface Props {
         fields: FieldView[];
@@ -21,67 +22,48 @@
         onsubmit
     }: Props = $props();
 
-    const editable = $derived(fields.filter((f) => f.uiType !== undefined));
-    const skipped = $derived(fields.filter((f) => f.uiType === undefined));
+    const editable = $derived(fields.filter((f) => f.type !== undefined));
+    const skipped = $derived(fields.filter((f) => f.type === undefined));
 
     // Intentional init-time snapshot: the form owns its draft, and parents
     // remount the component when the target record changes.
     // svelte-ignore state_referenced_locally
-    let draft = $state<Record<string, string | boolean>>(
+    let draft = $state<Record<string, DraftValue>>(
         Object.fromEntries(
             fields
-                .filter((f) => f.uiType !== undefined)
-                .map((f) => [f.name, toDraftValue(f, initial[f.name])])
+                .filter((f) => f.type !== undefined)
+                .map((f) => [f.name, toDraft(f.type!, initial[f.name], f.required)])
         )
     );
 
-    // Options for reference pickers, keyed by field name. Loaded once per
-    // mount (parents remount the form when the target record changes).
-    interface RefOption {
-        value: string;
-        label: string;
-    }
-    let refOptions = $state<Record<string, RefOption[] | null>>({});
+    // Reference picker options, shared across fields by target class and
+    // loaded once per mount.
+    let optionsByTarget = $state<Record<string, RefOption[]>>({});
     let refError = $state<string | null>(null);
 
     $effect(() => {
-        for (const field of fields) {
-            if (field.uiType === 'reference' && field.target !== undefined) {
-                void loadRefOptions(field.name, field.target);
-            }
-        }
+        const targets = new Set(fields.flatMap((f) => (f.type ? referenceTargets(f.type) : [])));
+        for (const target of targets) void loadTargetOptions(target);
     });
 
-    async function loadRefOptions(fieldName: string, target: string): Promise<void> {
-        refOptions[fieldName] ??= null;
+    async function loadTargetOptions(target: string): Promise<void> {
         try {
             const targetClass = await getClass(connection.client, target);
             const records = await listObjects(connection.client, target);
-            const options = records.map((record) => ({
+            optionsByTarget[target] = records.map((record) => ({
                 value: String(record.id),
                 label: objectLabel(targetClass, record)
             }));
-            // Preserve a link whose target no longer appears (e.g. created
-            // outside Parallax) rather than silently dropping it.
-            const current = draft[fieldName];
-            if (
-                typeof current === 'string' &&
-                current !== '' &&
-                !options.some((o) => o.value === current)
-            ) {
-                options.push({ value: current, label: `${current} (missing)` });
-            }
-            refOptions[fieldName] = options;
         } catch (err) {
             refError = err instanceof Error ? err.message : String(err);
-            refOptions[fieldName] = [];
+            optionsByTarget[target] = [];
         }
     }
 
     function submit(): void {
         const data: Record<string, unknown> = {};
         for (const field of editable) {
-            const value = fromDraftValue(field, draft[field.name]);
+            const value = fromDraft(field.type!, draft[field.name], field.required);
             if (value !== undefined) data[field.name] = value;
         }
         onsubmit(data);
@@ -95,77 +77,21 @@
     }}
 >
     {#each editable as field (field.name)}
-        {#if field.uiType === 'reference'}
-            <label>
-                <span>
-                    <code>{field.name}</code>
-                    <small>
-                        {field.target} reference
-                        {field.required ? '· required' : ''}
-                    </small>
-                </span>
-                <select bind:value={draft[field.name]} required={field.required}>
-                    {#if !field.required}
-                        <option value="">—</option>
-                    {:else}
-                        <option value="" disabled>Select a {field.target}…</option>
-                    {/if}
-                    {#each refOptions[field.name] ?? [] as option (option.value)}
-                        <option value={option.value}>{option.label}</option>
-                    {/each}
-                </select>
-                {#if refOptions[field.name]?.length === 0}
-                    <small>No {field.target} objects exist yet.</small>
-                {/if}
-            </label>
-        {:else if field.uiType === 'boolean'}
-            {#if field.required}
-                <label class="inline">
-                    <input type="checkbox" bind:checked={draft[field.name] as boolean} />
-                    <code>{field.name}</code>
-                </label>
-            {:else}
-                <label>
-                    <code>{field.name}</code>
-                    <select bind:value={draft[field.name]}>
-                        <option value="">—</option>
-                        <option value="true">yes</option>
-                        <option value="false">no</option>
-                    </select>
-                </label>
-            {/if}
-        {:else}
-            <label>
-                <span>
-                    <code>{field.name}</code>
-                    <small>
-                        {field.uiType ? FIELD_TYPE_LABELS[field.uiType] : field.surrealType}
-                        {field.required ? '· required' : ''}
-                    </small>
-                </span>
-                {#if field.uiType === 'long_text'}
-                    <textarea
-                        bind:value={draft[field.name] as string}
-                        rows="5"
-                        required={field.required}></textarea>
-                {:else if field.uiType === 'number'}
-                    <input
-                        type="number"
-                        step="any"
-                        bind:value={draft[field.name] as string}
-                        required={field.required}
-                    />
-                {:else if field.uiType === 'datetime'}
-                    <input
-                        type="datetime-local"
-                        bind:value={draft[field.name] as string}
-                        required={field.required}
-                    />
-                {:else}
-                    <input bind:value={draft[field.name] as string} required={field.required} />
-                {/if}
-            </label>
-        {/if}
+        <label class:inline={field.type?.kind === 'boolean' && field.required}>
+            <span>
+                <code>{field.name}</code>
+                <small>
+                    {field.type ? typeLabel(field.type) : field.surrealType}
+                    {field.required ? '· required' : ''}
+                </small>
+            </span>
+            <ValueEditor
+                type={field.type!}
+                bind:draft={draft[field.name]}
+                required={field.required}
+                {optionsByTarget}
+            />
+        </label>
     {/each}
 
     {#if skipped.length > 0}
@@ -201,7 +127,8 @@
     }
 
     label.inline {
-        flex-direction: row;
+        flex-direction: row-reverse;
+        justify-content: flex-end;
         align-items: center;
         gap: 0.4rem;
     }
@@ -214,19 +141,6 @@
 
     small {
         color: #666;
-    }
-
-    input:not([type='checkbox']),
-    select,
-    textarea {
-        font: inherit;
-        padding: 0.4rem 0.5rem;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-
-    textarea {
-        resize: vertical;
     }
 
     button {
