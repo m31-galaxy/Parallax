@@ -7,7 +7,7 @@ export default defineConfig({
     // app has no server (spec §7), so distillation calls OpenAI/Tavily
     // directly from the browser. Local development only — never ship a build
     // with these set.
-    envPrefix: ['VITE_', 'OPENAI_', 'TAVILY_'],
+    envPrefix: ['VITE_', 'ANTHROPIC_', 'TAVILY_'],
     // Honor an externally assigned port (e.g. the preview harness's PORT).
     server: process.env.PORT ? { port: Number(process.env.PORT), strictPort: true } : undefined,
     plugins: [

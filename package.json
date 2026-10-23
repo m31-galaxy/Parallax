@@ -34,6 +34,7 @@
     "vite": "^8.0.16"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.1.0",
     "surrealdb": "^2.0.8"
   }
 }

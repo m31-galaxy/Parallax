@@ -7,12 +7,15 @@
  * Spike caveats (speed over polish, by owner decision):
  * - API keys come from .env via Vite and are visible to the browser; local
  *   development only.
- * - The client calls OpenAI and Tavily directly (no server exists, spec §7).
+ * - The client calls the Claude API and Tavily directly (no server exists,
+ *   spec §7); the LLM provider remains formally undecided (spec §12) — the
+ *   spike currently runs on Anthropic because that is the key on hand.
  * - No review step yet — the model writes straight to the database. The
  *   database's SCHEMAFULL validation is the only gate; its errors are fed
  *   back to the model so it can correct itself.
  */
 
+import Anthropic from '@anthropic-ai/sdk';
 import { DateTime, RecordId, StringRecordId } from 'surrealdb';
 import type { Surreal } from 'surrealdb';
 import {
@@ -26,16 +29,16 @@ import { createObject, getObject, listObjects, objectId, updateObject } from '$l
 import { NOTE_CLASS, type NoteRecord } from '$lib/db/notes';
 
 const env = import.meta.env as Record<string, string | undefined>;
-const OPENAI_KEY = env.OPENAI_API_KEY ?? '';
+const ANTHROPIC_KEY = env.ANTHROPIC_API_KEY ?? '';
 const TAVILY_KEY = env.TAVILY_API_KEY ?? '';
 
-const MODEL = 'gpt-5-mini';
+const MODEL = 'claude-opus-5-5';
 const MAX_TURNS = 16;
 const MAX_OBJECTS_PER_CLASS = 25;
 
 /** Distillation is only offered when both keys are configured. */
 export function distillAvailable(): boolean {
-    return OPENAI_KEY !== '' && TAVILY_KEY !== '';
+    return ANTHROPIC_KEY !== '' && TAVILY_KEY !== '';
 }
 
 export interface DistillJob {
@@ -79,22 +82,12 @@ export function startDistillation(db: Surreal, note: NoteRecord): void {
 
 // --- Agent loop ---------------------------------------------------------------
 
-interface ToolCall {
-    id: string;
-    function: { name: string; arguments: string };
-}
-
-interface ChatMessage {
-    role: 'system' | 'user' | 'assistant' | 'tool';
-    content: string | null;
-    tool_calls?: ToolCall[];
-    tool_call_id?: string;
-}
-
 async function run(db: Surreal, job: DistillJob, content: string): Promise<void> {
+    // No server exists (spec §7, caveats above), so the browser talks to the
+    // API directly — that is what dangerouslyAllowBrowser acknowledges.
+    const client = new Anthropic({ apiKey: ANTHROPIC_KEY, dangerouslyAllowBrowser: true });
     const context = await buildContext(db);
-    const messages: ChatMessage[] = [
-        { role: 'system', content: SYSTEM_PROMPT },
+    const messages: Anthropic.Beta.BetaMessageParam[] = [
         {
             role: 'user',
             content: `Today's date: ${new Date().toDateString()}\n\n${context}\n\nNote to distill:\n"""\n${content}\n"""`
@@ -102,18 +95,45 @@ async function run(db: Surreal, job: DistillJob, content: string): Promise<void>
     ];
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-        const message = await chat(messages);
-        messages.push(message);
-        const calls = message.tool_calls ?? [];
-        if (calls.length === 0) {
-            job.summary = message.content ?? '(no summary)';
+        const response = await client.beta.messages.create({
+            model: MODEL,
+            max_tokens: 16000,
+            system: SYSTEM_PROMPT,
+            output_config: { effort: 'low' },
+            // On a safety decline the API reruns the request on a fallback
+            // model inside the same call instead of returning a refusal.
+            betas: ['server-side-fallback-2026-07-01'],
+            fallbacks: 'default',
+            tools: TOOLS,
+            messages
+        });
+        // Append the response blocks unchanged (thinking blocks included) —
+        // the API requires them intact on the next request of the loop.
+        messages.push({ role: 'assistant', content: response.content });
+
+        if (response.stop_reason === 'refusal') {
+            throw new Error(response.stop_details?.explanation ?? 'the model declined the request');
+        }
+        const calls = response.content.filter((b) => b.type === 'tool_use');
+        if (response.stop_reason !== 'tool_use' || calls.length === 0) {
+            const text = response.content
+                .filter((b) => b.type === 'text')
+                .map((b) => b.text)
+                .join('\n')
+                .trim();
+            job.summary = text === '' ? '(no summary)' : text;
             job.status = 'done';
             return;
         }
+        const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
         for (const call of calls) {
-            const result = await runTool(db, job, call);
-            messages.push({ role: 'tool', tool_call_id: call.id, content: result });
+            results.push({
+                type: 'tool_result',
+                tool_use_id: call.id,
+                content: await runTool(db, job, call)
+            });
         }
+        messages.push({ role: 'user', content: results });
     }
     job.summary = `Stopped after ${MAX_TURNS} turns.`;
     job.status = 'done';
@@ -137,86 +157,56 @@ Rules:
 - If a database write fails, the error is returned to you verbatim — fix the data and retry.
 - When finished, reply (no tool call) with a 1-3 sentence plain-text summary of what you did. If nothing in the note matches any class, do nothing and say so.`;
 
-const TOOLS = [
+const TOOLS: Anthropic.Beta.BetaTool[] = [
     {
-        type: 'function',
-        function: {
-            name: 'search_web',
-            description:
-                'Search the web (Tavily) for publicly-known information missing from the note.',
-            parameters: {
-                type: 'object',
-                properties: { query: { type: 'string' } },
-                required: ['query']
-            }
+        name: 'search_web',
+        description:
+            'Search the web (Tavily) for publicly-known information missing from the note.',
+        input_schema: {
+            type: 'object',
+            properties: { query: { type: 'string' } },
+            required: ['query']
         }
     },
     {
-        type: 'function',
-        function: {
-            name: 'create_object',
-            description: 'Create a new object of the given class.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    class: { type: 'string', description: 'Class (table) name' },
-                    data: {
-                        type: 'object',
-                        description: 'Field values keyed by field name',
-                        additionalProperties: true
-                    }
-                },
-                required: ['class', 'data']
-            }
+        name: 'create_object',
+        description: 'Create a new object of the given class.',
+        input_schema: {
+            type: 'object',
+            properties: {
+                class: { type: 'string', description: 'Class (table) name' },
+                data: {
+                    type: 'object',
+                    description: 'Field values keyed by field name',
+                    additionalProperties: true
+                }
+            },
+            required: ['class', 'data']
         }
     },
     {
-        type: 'function',
-        function: {
-            name: 'update_object',
-            description:
-                'Update an existing object. Merge semantics: only the provided fields change.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    class: { type: 'string' },
-                    id: { type: 'string', description: 'Object id as listed in the context' },
-                    data: { type: 'object', additionalProperties: true }
-                },
-                required: ['class', 'id', 'data']
-            }
+        name: 'update_object',
+        description: 'Update an existing object. Merge semantics: only the provided fields change.',
+        input_schema: {
+            type: 'object',
+            properties: {
+                class: { type: 'string' },
+                id: { type: 'string', description: 'Object id as listed in the context' },
+                data: { type: 'object', additionalProperties: true }
+            },
+            required: ['class', 'id', 'data']
         }
     }
 ];
 
-async function chat(messages: ChatMessage[]): Promise<ChatMessage> {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${OPENAI_KEY}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            model: MODEL,
-            reasoning_effort: 'low',
-            messages,
-            tools: TOOLS
-        })
-    });
-    if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-    const body = (await res.json()) as { choices: { message: ChatMessage }[] };
-    return body.choices[0].message;
-}
-
-async function runTool(db: Surreal, job: DistillJob, call: ToolCall): Promise<string> {
-    let args: Record<string, unknown>;
+async function runTool(
+    db: Surreal,
+    job: DistillJob,
+    call: Anthropic.Beta.BetaToolUseBlock
+): Promise<string> {
+    const args = (call.input ?? {}) as Record<string, unknown>;
     try {
-        args = JSON.parse(call.function.arguments) as Record<string, unknown>;
-    } catch {
-        return 'Error: tool arguments were not valid JSON.';
-    }
-    try {
-        switch (call.function.name) {
+        switch (call.name) {
             case 'search_web': {
                 const query = asString(args.query);
                 job.log.push(`Searched the web: “${query}”`);
@@ -246,11 +236,11 @@ async function runTool(db: Surreal, job: DistillJob, call: ToolCall): Promise<st
                 return `Updated ${className} "${id}".`;
             }
             default:
-                return `Error: unknown tool "${call.function.name}".`;
+                return `Error: unknown tool "${call.name}".`;
         }
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        job.log.push(`Failed ${call.function.name}: ${message}`);
+        job.log.push(`Failed ${call.name}: ${message}`);
         return `Error: ${message}`;
     }
 }
