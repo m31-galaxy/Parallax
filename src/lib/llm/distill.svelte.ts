@@ -13,9 +13,15 @@
  *   back to the model so it can correct itself.
  */
 
-import { DateTime } from 'surrealdb';
+import { DateTime, RecordId, StringRecordId } from 'surrealdb';
 import type { Surreal } from 'surrealdb';
-import { classStore, getClass, type ClassView } from '$lib/db/classes.svelte';
+import {
+    classStore,
+    getClass,
+    typeLabel,
+    type ClassView,
+    type FieldType
+} from '$lib/db/classes.svelte';
 import { createObject, getObject, listObjects, objectId, updateObject } from '$lib/db/objects';
 import { NOTE_CLASS, type NoteRecord } from '$lib/db/notes';
 
@@ -125,7 +131,9 @@ Rules:
 - Only use classes and fields that exist in the provided schemas. Never create "${NOTE_CLASS}" objects.
 - Check existing objects first; update rather than duplicate.
 - Only state facts from the note or from search results — if a value is unknown, leave the optional field out. Required fields must be provided.
-- Field value formats: datetime = ISO 8601 string, number = JSON number, boolean = JSON boolean, text = string.
+- Field value formats: datetime = ISO 8601 string, number = JSON number, boolean = JSON boolean, text = string, reference = the target object's id exactly as listed in the context, list = JSON array of element values.
+- A reference may only point at an existing object — create the target object first when it is not in the context yet, then use the id the tool result reports.
+- A required list field must be present but may be an empty array.
 - If a database write fails, the error is returned to you verbatim — fix the data and retry.
 - When finished, reply (no tool call) with a 1-3 sentence plain-text summary of what you did. If nothing in the note matches any class, do nothing and say so.`;
 
@@ -297,9 +305,11 @@ async function buildContext(db: Surreal): Promise<string> {
     const sections: string[] = [];
     for (const name of names) {
         const cls = await loadClass(db, name);
-        const fields = cls.fields
-            .filter((f) => f.uiType !== undefined)
-            .map((f) => `  - ${f.name}: ${f.uiType}${f.required ? ' (required)' : ''}`);
+        const fields = cls.fields.flatMap((f) =>
+            f.type === undefined
+                ? []
+                : [`  - ${f.name}: ${typeLabel(f.type)}${f.required ? ' (required)' : ''}`]
+        );
         const objects = await listObjects(db, name);
         const listed = objects
             .slice(0, MAX_OBJECTS_PER_CLASS)
@@ -326,6 +336,7 @@ async function buildContext(db: Surreal): Promise<string> {
 function plainJson(_key: string, value: unknown): unknown {
     if (value instanceof DateTime) return value.toDate().toISOString();
     if (value instanceof Date) return value.toISOString();
+    if (value instanceof RecordId || value instanceof StringRecordId) return value.toString();
     return value;
 }
 
@@ -337,26 +348,43 @@ function coerce(cls: ClassView, raw: unknown): Record<string, unknown> {
         if (value === null || value === undefined) continue;
         const field = cls.fields.find((f) => f.name === key);
         if (!field) throw new Error(`class ${cls.name} has no field "${key}"`);
-        switch (field.uiType) {
-            case 'number':
-                data[key] = Number(value);
-                break;
-            case 'boolean':
-                data[key] = value === true || value === 'true';
-                break;
-            case 'datetime': {
-                const date = new Date(asString(value));
-                if (Number.isNaN(date.getTime())) {
-                    throw new Error(`"${key}" is not a valid datetime: ${asString(value)}`);
-                }
-                data[key] = new DateTime(date);
-                break;
-            }
-            default:
-                data[key] = asString(value);
+        if (field.type === undefined) {
+            throw new Error(`field "${key}" has a type this client cannot write`);
         }
+        data[key] = coerceValue(key, field.type, value);
     }
     return data;
+}
+
+/** Convert one JSON value from the model, recursing through the field's type tree. */
+function coerceValue(key: string, type: FieldType, value: unknown): unknown {
+    switch (type.kind) {
+        case 'number':
+            return Number(value);
+        case 'boolean':
+            return value === true || value === 'true';
+        case 'datetime': {
+            const date = new Date(asString(value));
+            if (Number.isNaN(date.getTime())) {
+                throw new Error(`"${key}" is not a valid datetime: ${asString(value)}`);
+            }
+            return new DateTime(date);
+        }
+        case 'reference': {
+            // The context lists ids bare (`id "x1y2"`) but existing reference
+            // values render as "Target:x1y2" — accept either spelling.
+            const raw = asString(value);
+            return raw.startsWith(`${type.target}:`)
+                ? new StringRecordId(raw)
+                : new RecordId(type.target, raw);
+        }
+        case 'list': {
+            if (!Array.isArray(value)) throw new Error(`"${key}" must be a JSON array`);
+            return value.map((item) => coerceValue(key, type.element, item));
+        }
+        default:
+            return asString(value);
+    }
 }
 
 function asString(value: unknown): string {
