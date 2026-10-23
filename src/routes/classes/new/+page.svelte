@@ -5,13 +5,14 @@
     import {
         classStore,
         createClass,
-        FIELD_TYPE_LABELS,
-        FIELD_TYPES,
+        defaultFieldType,
+        fieldTypeProblem,
         isValidClassName,
         isValidFieldName,
         type NewField
     } from '$lib/db/classes.svelte';
     import { connection } from '$lib/db/connection.svelte';
+    import TypePicker from '$lib/components/TypePicker.svelte';
 
     interface FieldDraft extends NewField {
         key: number;
@@ -19,7 +20,7 @@
 
     let nextKey = 0;
     function blankField(): FieldDraft {
-        return { key: nextKey++, name: '', type: 'text', required: false };
+        return { key: nextKey++, name: '', type: defaultFieldType(), required: false };
     }
 
     let name = $state('');
@@ -44,8 +45,19 @@
             if (seen.has(field.name)) errors.push(`Duplicate field name "${field.name}".`);
             seen.add(field.name);
         }
+        for (const field of named) {
+            const problem = fieldTypeProblem(field.type);
+            if (problem !== null) errors.push(`Field "${field.name}" ${problem}.`);
+        }
         return errors;
     });
+
+    // Classes a reference can point at — including this one (self-reference),
+    // as the table is defined before its fields in the same query.
+    const targetOptions = $derived([
+        ...(isValidClassName(name) && !classStore.all.some((c) => c.name === name) ? [name] : []),
+        ...classStore.all.map((c) => c.name)
+    ]);
 
     const submittable = $derived(
         name !== '' && plural.trim() !== '' && validationErrors.length === 0 && !busy
@@ -96,11 +108,7 @@
                         placeholder="field_name"
                         aria-label="Field name"
                     />
-                    <select bind:value={field.type} aria-label="Field type">
-                        {#each FIELD_TYPES as type (type)}
-                            <option value={type}>{FIELD_TYPE_LABELS[type]}</option>
-                        {/each}
-                    </select>
+                    <TypePicker bind:type={field.type} targets={targetOptions} />
                     <label class="required">
                         <input type="checkbox" bind:checked={field.required} />
                         required
@@ -182,6 +190,7 @@
         display: flex;
         gap: 0.5rem;
         align-items: center;
+        flex-wrap: wrap;
     }
 
     .field-row input:not([type='checkbox']) {
@@ -195,8 +204,7 @@
         white-space: nowrap;
     }
 
-    input,
-    select {
+    input {
         font: inherit;
         padding: 0.4rem 0.5rem;
         border: 1px solid #ccc;

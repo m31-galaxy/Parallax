@@ -1,6 +1,8 @@
 <script lang="ts">
-    import { FIELD_TYPE_LABELS, type FieldView } from '$lib/db/classes.svelte';
-    import { fromDraftValue, toDraftValue } from '$lib/db/objects';
+    import ValueEditor, { type RefOption } from './ValueEditor.svelte';
+    import { getClass, referenceTargets, typeLabel, type FieldView } from '$lib/db/classes.svelte';
+    import { connection } from '$lib/db/connection.svelte';
+    import { fromDraft, listObjects, objectLabel, toDraft, type DraftValue } from '$lib/db/objects';
 
     interface Props {
         fields: FieldView[];
@@ -20,24 +22,48 @@
         onsubmit
     }: Props = $props();
 
-    const editable = $derived(fields.filter((f) => f.uiType !== undefined));
-    const skipped = $derived(fields.filter((f) => f.uiType === undefined));
+    const editable = $derived(fields.filter((f) => f.type !== undefined));
+    const skipped = $derived(fields.filter((f) => f.type === undefined));
 
     // Intentional init-time snapshot: the form owns its draft, and parents
     // remount the component when the target record changes.
     // svelte-ignore state_referenced_locally
-    let draft = $state<Record<string, string | boolean>>(
+    let draft = $state<Record<string, DraftValue>>(
         Object.fromEntries(
             fields
-                .filter((f) => f.uiType !== undefined)
-                .map((f) => [f.name, toDraftValue(f, initial[f.name])])
+                .filter((f) => f.type !== undefined)
+                .map((f) => [f.name, toDraft(f.type!, initial[f.name], f.required)])
         )
     );
+
+    // Reference picker options, shared across fields by target class and
+    // loaded once per mount.
+    let optionsByTarget = $state<Record<string, RefOption[]>>({});
+    let refError = $state<string | null>(null);
+
+    $effect(() => {
+        const targets = new Set(fields.flatMap((f) => (f.type ? referenceTargets(f.type) : [])));
+        for (const target of targets) void loadTargetOptions(target);
+    });
+
+    async function loadTargetOptions(target: string): Promise<void> {
+        try {
+            const targetClass = await getClass(connection.client, target);
+            const records = await listObjects(connection.client, target);
+            optionsByTarget[target] = records.map((record) => ({
+                value: String(record.id),
+                label: objectLabel(targetClass, record)
+            }));
+        } catch (err) {
+            refError = err instanceof Error ? err.message : String(err);
+            optionsByTarget[target] = [];
+        }
+    }
 
     function submit(): void {
         const data: Record<string, unknown> = {};
         for (const field of editable) {
-            const value = fromDraftValue(field, draft[field.name]);
+            const value = fromDraft(field.type!, draft[field.name], field.required);
             if (value !== undefined) data[field.name] = value;
         }
         onsubmit(data);
@@ -51,54 +77,21 @@
     }}
 >
     {#each editable as field (field.name)}
-        {#if field.uiType === 'boolean'}
-            {#if field.required}
-                <label class="inline">
-                    <input type="checkbox" bind:checked={draft[field.name] as boolean} />
-                    <code>{field.name}</code>
-                </label>
-            {:else}
-                <label>
-                    <code>{field.name}</code>
-                    <select bind:value={draft[field.name]}>
-                        <option value="">—</option>
-                        <option value="true">yes</option>
-                        <option value="false">no</option>
-                    </select>
-                </label>
-            {/if}
-        {:else}
-            <label>
-                <span>
-                    <code>{field.name}</code>
-                    <small>
-                        {field.uiType ? FIELD_TYPE_LABELS[field.uiType] : field.surrealType}
-                        {field.required ? '· required' : ''}
-                    </small>
-                </span>
-                {#if field.uiType === 'long_text'}
-                    <textarea
-                        bind:value={draft[field.name] as string}
-                        rows="5"
-                        required={field.required}></textarea>
-                {:else if field.uiType === 'number'}
-                    <input
-                        type="number"
-                        step="any"
-                        bind:value={draft[field.name] as string}
-                        required={field.required}
-                    />
-                {:else if field.uiType === 'datetime'}
-                    <input
-                        type="datetime-local"
-                        bind:value={draft[field.name] as string}
-                        required={field.required}
-                    />
-                {:else}
-                    <input bind:value={draft[field.name] as string} required={field.required} />
-                {/if}
-            </label>
-        {/if}
+        <label class:inline={field.type?.kind === 'boolean' && field.required}>
+            <span>
+                <code>{field.name}</code>
+                <small>
+                    {field.type ? typeLabel(field.type) : field.surrealType}
+                    {field.required ? '· required' : ''}
+                </small>
+            </span>
+            <ValueEditor
+                type={field.type!}
+                bind:draft={draft[field.name]}
+                required={field.required}
+                {optionsByTarget}
+            />
+        </label>
     {/each}
 
     {#if skipped.length > 0}
@@ -108,6 +101,9 @@
         </p>
     {/if}
 
+    {#if refError !== null}
+        <p class="error">{refError}</p>
+    {/if}
     {#if error !== null}
         <p class="error">{error}</p>
     {/if}
@@ -131,7 +127,8 @@
     }
 
     label.inline {
-        flex-direction: row;
+        flex-direction: row-reverse;
+        justify-content: flex-end;
         align-items: center;
         gap: 0.4rem;
     }
@@ -144,19 +141,6 @@
 
     small {
         color: #666;
-    }
-
-    input:not([type='checkbox']),
-    select,
-    textarea {
-        font: inherit;
-        padding: 0.4rem 0.5rem;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-
-    textarea {
-        resize: vertical;
     }
 
     button {

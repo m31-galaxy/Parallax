@@ -53,6 +53,11 @@
 
 ## Known issues / polish
 
+- [ ] The web app hangs on a dead connection: the SDK does not auto-reconnect
+      when the WebSocket drops (observed 2026-08-22 — pages stick on
+      "Loading…" while the header still says "connected"). Consider wiring the
+      SDK's reconnect options or surfacing the disconnected state properly.
+
 - [ ] Editing a Note through the generic object form can trip the readonly
       `created` field: `datetime-local` truncates seconds, so the resubmitted
       value differs and the database rejects it (2026-08-22). Related to the
@@ -68,9 +73,14 @@
 
 - [ ] **Document-like note editor** (Obsidian-style full-page editing) —
       deferred from v0.1 note capture (spec §5).
-- [ ] **More field types** (deferred from v0.1 class designer, spec §4):
-      references (`record<Class>`), select/enum (string + `ASSERT ... INSIDE`),
-      lists (`array<T>`).
+- [ ] **More field types** (spec §4): references shipped 2026-08-22, lists
+      2026-08-24. Still planned toward full SurrealDB parity: select/enum
+      (string + `ASSERT ... INSIDE`), then further scalars — duration, uuid,
+      decimal, bytes, object, geometry.
+- [ ] **MCP recursive-type support** (`mcp` branch, after merge): create_class
+      accepts the recursive type model (references, lists); coerceData converts
+      "Person:x" strings to record ids and ISO strings to datetimes inside
+      lists; get_class exposes the type trees.
 - [x] **Destructive schema operations — deletes**: field removal (two-step
       confirm, stored values purged) and class deletion (typed-name confirm)
       shipped 2026-08-22 (spec §4).
